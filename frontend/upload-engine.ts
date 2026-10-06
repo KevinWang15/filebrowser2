@@ -34,9 +34,9 @@ export class UploadEngine {
   private controllers = new Map<string, AbortController>()
   private manifests = new Map<string, { file: File; hashes: string[]; manifestHash: string }>()
   connections: 1 | 2 | 4 = 1
-  onComplete: () => void = () => {}
+  onComplete: (task: Transfer) => void = () => {}
   activate() { this.disposed = false }
-  setCompleteHandler(handler: () => void) { this.onComplete = handler }
+  setCompleteHandler(handler: (task: Transfer) => void) { this.onComplete = handler }
   setConnections(connections: 1 | 2 | 4) { this.connections = connections }
   subscribe(listener: (tasks: Transfer[]) => void) { this.listeners.add(listener); listener(this.snapshot()); return () => { this.listeners.delete(listener) } }
   private snapshot() { return this.tasks.map(task => ({ ...task })) }
@@ -216,6 +216,6 @@ export class UploadEngine {
         await delay(Math.min(30_000, 1000 * 2 ** attempt), signal)
       }
     }
-    task.session = session; task.state = 'completed'; task.committedBytes = task.size; task.sentBytes = 0; task.speed = 0; task.file = undefined; this.manifests.delete(task.id); this.notify(); this.onComplete()
+    task.session = session; task.state = 'completed'; task.committedBytes = task.size; task.sentBytes = 0; task.speed = 0; task.file = undefined; this.manifests.delete(task.id); this.notify(); this.onComplete({ ...task })
   }
 }

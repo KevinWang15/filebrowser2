@@ -43,7 +43,7 @@ try {
   await page.getByLabel('Username',{exact:true}).fill('admin')
   await page.getByLabel('Password',{exact:true}).fill(process.env.FB_VERIFY_ADMIN_PASSWORD??'changed-container-verification-password')
   await page.getByRole('button',{name:'Sign in',exact:true}).click()
-  await page.getByRole('heading',{name:'All files.'}).waitFor()
+  await page.getByRole('heading',{name:'My files'}).waitFor()
   await page.getByRole('button',{name:'Transfers',exact:true}).click()
 
   let lostCommit
