@@ -1,14 +1,16 @@
 # Root deployment on icdesign.com
 
-The installed service listens on **127.0.0.1:7288**, runs as **root**, and manages regular files and directories beneath **/**. Application account permissions still apply. Symlinks, reserved `.filebrowser-*` paths and special device files remain inaccessible through the API. FUSE mounts retain their own access restrictions.
+The installed service listens on **0.0.0.0:7288**, runs as **root**, and manages regular files and directories beneath **/**. Application account permissions still apply. Symlinks, reserved `.filebrowser-*` paths and special device files remain inaccessible through the API. FUSE mounts retain their own access restrictions.
 
-Connect without exposing another network listener:
+Open **http://192.168.1.7:7288** from a network that can reach the host, or connect through an SSH tunnel:
 
 ```sh
 ssh -p 7822 -L 7288:127.0.0.1:7288 root@icdesign.com
 ```
 
 Open **http://127.0.0.1:7288** on your computer. Deployment initially left setup ready for your chosen administrator password; a later final check found it completed with one administrator. Sign in with the account created during setup. The deployment tools provisioned no production account or default password.
+
+On 2026-10-07 the listener changed from loopback to all IPv4 interfaces. Health checks succeeded on the host's LAN address `192.168.1.7`, while connections to `icdesign.com:7288` from the deployment machine were refused. Public access depends on the host's firewall/router and port forwarding; those settings were not changed.
 
 ## Service operations
 

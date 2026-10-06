@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "listen": "0.0.0.0:7288",
+  "uid": 0,
+  "pid": 513,
+  "interfaceAddress": "192.168.1.7",
+  "interfaceHealth": {
+    "status": "ok",
+    "commit": "local"
+  },
+  "bootstrap": {
+    "needsSetup": false,
+    "siteName": "Filebrowser",
+    "user": null,
+    "upload": {
+      "chunkSize": 104857600,
+      "maxFileSize": 1099511627776,
+      "maxConnections": 4
+    }
+  },
+  "users": [
+    {
+      "role": "admin",
+      "count": 1
+    }
+  ],
+  "anonymousFilesStatus": 401
+}

@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 const base = '/root/filebrowser2'
 const url = 'http://127.0.0.1:7288'
 const checks = []
+const listenHost = process.env.FB_VERIFY_LISTEN_HOST ?? '0.0.0.0'
 const check = name => { checks.push({ name, status: 'PASS' }); console.log('PASS ' + name) }
 const command = (file, args) => execFileSync(file, args, { encoding: 'utf8' }).trim()
 function pid() {
@@ -36,9 +37,10 @@ try {
   await healthy()
   const initialPid = pid()
   assert.match(await readFile('/proc/' + initialPid + '/status', 'utf8'), /^Uid:\s+0\s+0\s+0\s+0$/m)
-  const listeners = command('ss', ['-lntp']).split('\n').filter(line => /:7288\s/.test(line))
+  const listeners = command('ss', ['-4', '-lntp']).split('\n').filter(line => /:7288\s/.test(line))
   assert.equal(listeners.length, 1)
-  assert.match(listeners[0], /127\.0\.0\.1:7288\s/)
+  const fields = listeners[0].split(/\s+/)
+  assert.ok(fields.includes(listenHost + ':7288') || (listenHost === '0.0.0.0' && fields.includes('*:7288')), listeners[0])
   assert.ok(listeners[0].includes('pid=' + initialPid + ',') || listeners[0].includes(',' + initialPid + ','), listeners[0])
   await fresh()
   const state = base + '/.filebrowser-state'
@@ -46,7 +48,7 @@ try {
   assert.equal((await lstat(state + '/filebrowser.sqlite')).mode & 0o777, 0o600)
   const db = new DatabaseSync(state + '/filebrowser.sqlite', { readOnly: true })
   try { assert.equal(db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 0) } finally { db.close() }
-  check('loopback-only listener, root process, private state permissions, default 100 MiB chunks and zero production accounts')
+  check('configured listener, root process, private state permissions, default 100 MiB chunks and zero production accounts')
 
   const html = await (await fetch(url + '/')).text()
   const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map(match => match[1])

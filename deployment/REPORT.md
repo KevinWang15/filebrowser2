@@ -1,12 +1,18 @@
 # Filebrowser2 deployment verification
 
-**Result: PASS.** Deployed on `icdesign.com` over SSH port 7822 on 2026-10-06. The service runs as root from `/root/filebrowser2`, listens only on `127.0.0.1:7288`, and manages the host filesystem with storage root `/`. Upstart supervises it and starts it at runlevels 2–5. Commissioning left the setup wizard unsubmitted with zero users and no default password. A later final health check found setup completed with one administrator; that account was preserved.
+**Result: PASS.** Deployed on `icdesign.com` over SSH port 7822 on 2026-10-06. The service runs as root from `/root/filebrowser2` and manages the host filesystem with storage root `/`. Its initial listener was `127.0.0.1:7288`; on 2026-10-07 it changed to **0.0.0.0:7288** at the user's request. Upstart supervises it and starts it at runlevels 2–5. Commissioning left the setup wizard unsubmitted with zero users and no default password. A later final health check found setup completed with one administrator; that account was preserved.
 
 Application source: `0c27120ce800dee02780316cc1dfdf07306fc4cd`, including the merged frontend redesign and deployment fixes. The server's SHA-256 is `d66a959c4ced001c6364739db35c84a3b4202fb16671d71764cdcaf2a722bb92`, confirmed on the target. [Package provenance](verification/deployed-package.json) records the exact 81-package production dependency graph and runtime hashes. Release transfer SHA-256 was checked before extraction.
 
 The [deployment report, evidence and screenshots bundle](https://transfer.ke.wang/attachments/9c6f7f07b42773998a697e6f74114dc4?fileName=filebrowser2-deployment-2026-10-06.tar.gz) was uploaded to session `111111`. Its SHA-256 is `7358e446f6d0c1f9fb4cf9ca26458f47ff235e108d8f374dc356ac22165e4bda`; the downloaded bytes were compared with the original archive. [Transfer receipt](verification/bundle-transfer.json).
 
-## Installed configuration
+## Listener update on 2026-10-07
+
+The installed Upstart job and its deployment copies now contain `env HOST=0.0.0.0`. Syntax validation passed. Upstart retained the original environment on an initial `restart`, so the service was fully stopped and started after reloading configuration. PID 513 then listened on all IPv4 addresses. The running process environment and `/proc/net/tcp` both confirm the new binding. Root UID, default upload limits, the existing administrator and anonymous file-access rejection were preserved.
+
+Health returned `ok` through both loopback and the actual host interface `192.168.1.7:7288`. Connections from the deployment machine to `icdesign.com:7288` were refused. The application binding is verified; firewall/router forwarding was not changed. [Listener evidence](verification/listen-all-interfaces-results.json), [command output](verification/listen-all-interfaces.log), [external reachability result](verification/public-health.json).
+
+## Initial installed configuration (2026-10-06)
 
 | Setting | Verified value |
 | --- | --- |
@@ -81,7 +87,7 @@ Use `status filebrowser2`, `restart filebrowser2`, and `/var/log/upstart/filebro
 ssh -p 7822 -L 7288:127.0.0.1:7288 root@icdesign.com
 ```
 
-Open `http://127.0.0.1:7288` and sign in using the account created during setup. The deployment has no public listener or configured reverse-proxy domain. If adding HTTPS later, configure its actual `FB_PUBLIC_ORIGIN` and secure cookies. More detail is in the [deployment instructions](README.md).
+Open `http://127.0.0.1:7288` and sign in using the account created during setup. The initial deployment had no public listener or configured reverse-proxy domain; the later listener change is documented above. If adding HTTPS later, configure its actual `FB_PUBLIC_ORIGIN` and secure cookies. More detail is in the [deployment instructions](README.md).
 
 The host is Ubuntu 14.04.3 with Linux 3.16 and system glibc 2.19. These are outside the [official Node 24 supported platform matrix](https://github.com/nodejs/node/blob/v24.x/BUILDING.md#platform-list), which lists newer kernel/glibc requirements and excludes end-of-life platforms. The private runtime passed actual target SQLite, hashing, authentication, networking, filesystem, crash-recovery and browser checks; this does not establish upstream support for the legacy host.
 

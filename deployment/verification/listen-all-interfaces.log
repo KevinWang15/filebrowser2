@@ -1,0 +1,9 @@
+File /etc/init/filebrowser2.conf: syntax ok
+filebrowser2 start/running, process 392
+filebrowser2 start/running, process 392
+LISTEN     0      128               127.0.0.1:7288                     *:*      users:(("MainThread",392,29))
+{"status":"ok","commit":"local"}{"needsSetup":false,"siteName":"Filebrowser","user":null,"upload":{"chunkSize":104857600,"maxFileSize":1099511627776,"maxConnections":4}}filebrowser2 stop/waiting
+filebrowser2 start/running, process 513
+filebrowser2 start/running, process 513
+LISTEN     0      128                       *:7288                     *:*      users:(("MainThread",513,29))
+{"status":"ok","commit":"local"}{"needsSetup":false,"siteName":"Filebrowser","user":null,"upload":{"chunkSize":104857600,"maxFileSize":1099511627776,"maxConnections":4}}
