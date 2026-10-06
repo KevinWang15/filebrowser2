@@ -83,6 +83,7 @@ export function TransfersView({ transfers, engine, user, connections, onConnecti
   const running = transfers.filter(isRunning)
   const sending = running.filter(task => task.state !== 'queued')
   const speed = running.reduce((sum, task) => sum + task.speed, 0)
+  const throughput = speed ? formatBytes(speed) + '/s' : '—'
   const totalBytes = active.reduce((sum, task) => sum + task.size, 0)
   const doneBytes = active.reduce((sum, task) => sum + task.committedBytes + task.sentBytes, 0)
   const cancelTask = transfers.find(task => task.id === cancelId)
@@ -105,7 +106,7 @@ export function TransfersView({ transfers, engine, user, connections, onConnecti
       <div><span>Active</span><strong className="mono">{active.length}</strong></div>
       <div><span>Running</span><strong className="mono">{sending.length}</strong></div>
       <div><span>Remaining</span><strong className="mono">{formatBytes(Math.max(0, totalBytes - doneBytes))}</strong></div>
-      <div><span>Throughput</span><strong className="mono">{speed ? formatBytes(speed) + '/s' : '—'}</strong></div>
+      <div><span>Throughput</span><strong className="mono" title={throughput}>{throughput}</strong></div>
       <div className="stat-progress"><span>Overall</span><Progress value={totalBytes ? doneBytes / totalBytes : complete ? 1 : 0} /></div>
     </div>
     <div className="toolbar">

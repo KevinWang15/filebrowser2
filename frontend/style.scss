@@ -720,9 +720,9 @@ tr:hover .row-actions, tr.is-selected .row-actions, tr:focus-within .row-actions
 
 .table-wrap { flex: 1; min-height: 0; overflow: auto; }
 .stat-strip {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 120px)) minmax(160px, 1fr); flex-shrink: 0; border-bottom: 1px solid var(--border-soft);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 120px)) minmax(0, 160px) minmax(160px, 1fr); flex-shrink: 0; border-bottom: 1px solid var(--border-soft);
   > div { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 9px 20px; border-right: 1px solid var(--border-soft); min-width: 0;
-    > span { font-size: 11px; color: var(--text-3); } strong { font-size: 15px; font-weight: 600; letter-spacing: -.02em; } }
+    > span { font-size: 11px; color: var(--text-3); } strong { font-size: 15px; font-weight: 600; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
   .stat-progress { border-right: 0; gap: 9px; }
 }
 .transfers-table {
