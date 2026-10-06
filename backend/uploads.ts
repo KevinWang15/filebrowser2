@@ -128,7 +128,7 @@ export class Uploads {
         catch (error) { if (!isFsError(error, 'ENOENT')) throw error }
       }
       if (this.store.retainedUploads().length >= 64) throw new HttpError(429, 'Too many unfinished transfers. Cancel unused transfers first.')
-      const space = await this.storage.space()
+      const space = await this.storage.space(posix.dirname(path))
       if (space.available < Math.min(manifest.size, manifest.chunkSize) * 2 + 16 * 1024 * 1024) throw new HttpError(507, 'Not enough disk space to start this transfer', 'DISK_FULL')
       const id = randomUUID()
       const inode = await this.storage.createStage(id, path)
@@ -162,7 +162,7 @@ export class Uploads {
       if (previous) previous.failed = true
       await this.storage.resetTo(id, row.committed_bytes)
       const size = Math.min(manifest.chunkSize, manifest.size - row.committed_bytes)
-      if ((await this.storage.space()).available < size * 2 + 8 * 1024 * 1024) throw new HttpError(507, 'Disk is full. Free space and resume.', 'DISK_FULL')
+      if ((await this.storage.space(posix.dirname(row.path))).available < size * 2 + 8 * 1024 * 1024) throw new HttpError(507, 'Disk is full. Free space and resume.', 'DISK_FULL')
       await this.storage.prepareChunk(id, size)
       const parts = Array.from({ length: Math.min(connections, size) }, (_, part) => {
         const count = Math.min(connections, size)

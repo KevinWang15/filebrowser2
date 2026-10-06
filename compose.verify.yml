@@ -56,6 +56,10 @@ services:
       FB_VERIFY_URL: http://filebrowser.internal:3000
       FB_VERIFY_OUTPUT: /evidence
       TEST_DATABASE_URL: postgresql://postgres:verification-only-password@database:5432/filebrowser_test
+      FB_TEST_STORAGE_ROOT: /files
+      FB_TEST_MOUNT_PATH: /files/external
+    tmpfs:
+      - /files/external:size=64m,mode=0750
     volumes:
       - ./verification:/evidence
       - ./scripts:/app/scripts:ro

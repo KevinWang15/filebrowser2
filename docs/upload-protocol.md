@@ -77,6 +77,8 @@ send acknowledgment
 
 The first target, destination marker, and containing staging directories are synced before session initialization commits. Only afterward is a public `filename.uploading` hard link created and its parent synced. The private `target.uploading` anchor shares the same inode and blocks. Startup migrates legacy `target` names in place and restores missing pending aliases without copying data. Disk writes handle partial writes and apply backpressure. A checksum/append failure truncates the target to its previous durable offset. Temporary chunks are not made durable because they can be reconstructed from the source after a crash.
 
+For a destination on another mounted filesystem, the payload and chunk live in a private `.filebrowser-uploads-<device>` directory on that filesystem. The central `.filebrowser-uploads/<session>` registry is a private symlink to that stage; it is durably written before payload creation and removed after payload cleanup. Public file APIs still reject all symlinks and reserved paths. This keeps the anchor, pending name and final name on one device without copying the completed file. Capacity checks use the destination filesystem. Recovery validates the recorded device and retains the registry and destination reservation if the mount is unavailable; such a session is marked failed and can be inspected or canceled after restoring the mount.
+
 ## Failure cases
 
 | Failure | Recovery |

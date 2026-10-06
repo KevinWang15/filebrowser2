@@ -1,6 +1,6 @@
 import { constants } from 'node:fs'
-import { lstat, mkdir, readdir, open, unlink, rmdir, link, rename, statfs, rm, readFile } from 'node:fs/promises'
-import { resolve, join, dirname, basename, relative } from 'node:path'
+import { lstat, mkdir, readdir, open, unlink, rmdir, link, rename, statfs, rm, readFile, readlink, symlink } from 'node:fs/promises'
+import { resolve, join, dirname, basename, relative, isAbsolute } from 'node:path'
 import { createHash } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import type { Readable } from 'node:stream'
@@ -44,6 +44,30 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend {
   private stage(id: string) {
     if (!/^[a-f0-9-]{36}$/.test(id)) throw new HttpError(400, 'Invalid upload ID')
     return join(this.staging, id)
+  }
+  // The central registry can point to a stage on another mounted filesystem.
+  // These private, app-created symlinks are never accessible through file APIs.
+  private async linkedStage(id: string) {
+    const registry = this.stage(id)
+    let info
+    try { info = await lstat(registry) }
+    catch (error) { if (isFsError(error, 'ENOENT')) return null; throw error }
+    if (!info.isSymbolicLink()) return null
+    const target = await readlink(registry)
+    const relativeTarget = relative(this.root, target)
+    const device = /^\.filebrowser-uploads-([0-9]+)$/.exec(basename(dirname(target)))?.[1]
+    if (!isAbsolute(target) || isAbsolute(relativeTarget) || relativeTarget === '..' || relativeTarget.startsWith('../') || basename(target) !== id || !device) {
+      throw new HttpError(409, 'Invalid upload staging registry', 'DATA_LOSS')
+    }
+    let available = false
+    try {
+      const volume = await this.safePath(this.virtualPath(dirname(dirname(target))))
+      available = (await lstat(volume, { bigint: true })).dev === BigInt(device)
+    } catch (error) { if (!isFsError(error, 'ENOENT') && !isFsError(error, 'ENOTDIR')) throw error }
+    if (!available) {
+      throw new HttpError(409, 'The upload filesystem is unavailable. Mount it before retrying.', 'STORAGE_UNAVAILABLE')
+    }
+    return target
   }
   private async safePath(path: string, allowMissing = false): Promise<string> {
     const virtual = normalizePath(path)
@@ -123,8 +147,8 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend {
     else await unlink(native)
     await syncDirectory(dirname(native))
   }
-  async space() {
-    const info = await statfs(this.root)
+  async space(path = '/') {
+    const info = await statfs(await this.safePath(path))
     return { total: info.blocks * info.bsize, available: info.bavail * info.bsize }
   }
   private target(id: string) { return join(this.stage(id), 'target.uploading') }
@@ -133,17 +157,40 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend {
     try { await marker.writeFile(JSON.stringify({ destination })); await marker.sync() } finally { await marker.close() }
   }
   async createStage(id: string, destination: string) {
-    const stage = this.stage(id)
+    const registry = this.stage(id)
+    const parent = await this.safePath(dirname(destination))
+    const device = (await lstat(parent, { bigint: true })).dev
+    let stage = registry
+    if (device !== (await lstat(this.staging, { bigint: true })).dev) {
+      let volume = parent
+      while (volume !== this.root) {
+        const above = dirname(volume)
+        if ((await lstat(above, { bigint: true })).dev !== device) break
+        volume = above
+      }
+      const staging = join(volume, '.filebrowser-uploads-' + device)
+      await mkdir(staging, { mode: 0o700 }).catch(error => { if (!isFsError(error, 'EEXIST')) throw error })
+      const info = await lstat(staging)
+      if (!info.isDirectory() || info.isSymbolicLink()) throw new HttpError(409, 'Invalid upload staging directory', 'DATA_LOSS')
+      await syncDirectory(volume)
+      stage = join(staging, id)
+      // Persist the locator before creating any payload on the other disk.
+      // A crash at any following step leaves an identifiable orphan to clean up.
+      await symlink(stage, registry)
+      await syncDirectory(this.staging)
+    }
     await mkdir(stage, { mode: 0o700 })
     const file = await open(this.target(id), 'wx', 0o600)
     try { await file.sync() } finally { await file.close() }
     await this.writeDestination(id, destination)
     await syncDirectory(stage)
+    await syncDirectory(dirname(stage))
     await syncDirectory(this.staging)
     const info = await lstat(this.target(id), { bigint: true })
     return `${info.dev}:${info.ino}`
   }
   async restoreStage(id: string, destination: string, inode: string) {
+    await this.linkedStage(id)
     try { await lstat(this.target(id)) }
     catch (error) {
       if (!isFsError(error, 'ENOENT')) throw error
@@ -267,6 +314,7 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend {
     } catch (error) { if (!isFsError(error, 'ENOENT')) throw error }
   }
   async removeStage(id: string, destination?: string, inode?: string, removePending = true) {
+    const linked = await this.linkedStage(id)
     if (removePending) {
       if (destination && inode) await this.removePending(destination, inode)
       else {
@@ -281,12 +329,20 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend {
         }
       }
     }
-    await rm(this.stage(id), { recursive: true, force: true })
+    if (linked) {
+      await rm(linked, { recursive: true, force: true })
+      await syncDirectory(dirname(linked))
+      // The durable registry is removed last so cancellation can be retried.
+      await unlink(this.stage(id))
+    } else await rm(this.stage(id), { recursive: true, force: true })
     await syncDirectory(this.staging)
   }
   async orphanStages(validIds: Set<string>, knownIds: Set<string>) {
     for (const e of await readdir(this.staging, { withFileTypes: true })) {
-      if (e.isDirectory() && /^[a-f0-9-]{36}$/.test(e.name) && !validIds.has(e.name)) await this.removeStage(e.name, undefined, undefined, !knownIds.has(e.name))
+      if ((e.isDirectory() || e.isSymbolicLink()) && /^[a-f0-9-]{36}$/.test(e.name) && !validIds.has(e.name)) {
+        try { await this.removeStage(e.name, undefined, undefined, !knownIds.has(e.name)) }
+        catch (error) { if (!(error instanceof HttpError && error.code === 'STORAGE_UNAVAILABLE')) throw error }
+      }
     }
   }
   virtualPath(native: string) { return '/' + relative(this.root, native).split('\\').join('/') }

@@ -13,7 +13,7 @@ export interface StorageBackend {
   mkdir(path: string): Promise<void>
   move(source: string, destination: string): Promise<void>
   remove(path: string): Promise<void>
-  space(): Promise<{ total: number; available: number }>
+  space(path?: string): Promise<{ total: number; available: number }>
 }
 
 export interface SequentialUploadBackend {

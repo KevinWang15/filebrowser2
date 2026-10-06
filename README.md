@@ -54,6 +54,8 @@ HOST=127.0.0.1 PORT=3000 npm start
 
 The bundled backend serves the built frontend. Terminate HTTPS at your reverse proxy and forward the configured public origin. The local backend requires a filesystem with working file/directory `fsync`, same-volume hard links, and SQLite locking. Linux with a local filesystem is the supported target. One process owns the storage root and state directory; OS-managed locks reject a second writer and automatically release after a crash.
 
+For whole-host administration, set `FB_STORAGE_ROOT=/` and put state inside a reserved `.filebrowser-*` directory, such as `/root/filebrowser2/.filebrowser-state`. The API hides and rejects that namespace. Uploads on other mounted filesystems place their payload and temporary chunk on the destination filesystem, keeping publication on one device and checking that device's free space. See the [deployment instructions](deployment/README.md) and [target verification report](deployment/REPORT.md) for the root service installed on `icdesign.com`.
+
 For nginx, the upload location needs streaming request bodies and generous transfer timeouts:
 
 ```nginx

@@ -1,4 +1,18 @@
 import { CHUNK_SIZE, MAX_CHUNKS, MAX_FILE_SIZE } from '@/shared/types'
+import { isAbsolute, relative, resolve } from 'node:path'
+
+export function storageLocations(root = process.env.FB_STORAGE_ROOT ?? './data', state = process.env.FB_STATE_DIR ?? './.filebrowser') {
+  const storageRoot = resolve(root)
+  const stateDirectory = resolve(state)
+  const location = relative(storageRoot, stateDirectory)
+  const inside = !isAbsolute(location) && location !== '..' && !location.startsWith('../')
+  // Whole-filesystem browsing has no outside directory. Use the namespace that
+  // the file API rejects to keep SQLite accounts/sessions private in that case.
+  if (inside && !location.split('/').some(part => part.startsWith('.filebrowser-'))) {
+    throw new Error('FB_STATE_DIR must be outside FB_STORAGE_ROOT or inside a reserved .filebrowser-* directory')
+  }
+  return { storageRoot, stateDirectory }
+}
 
 export function uploadConfig(chunkOverride?: number, fileOverride?: number) {
   const chunkSize = chunkOverride ?? Number(process.env.FB_UPLOAD_CHUNK_SIZE ?? CHUNK_SIZE)

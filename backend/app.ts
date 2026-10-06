@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { posix, resolve } from 'node:path'
+import { posix } from 'node:path'
 import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import staticFiles from '@fastify/static'
 import { z } from 'zod'
 import { MAX_CHUNKS, FULL_PERMISSIONS, type SystemInfo } from '@/shared/types'
-import { uploadConfig } from './config'
+import { storageLocations, uploadConfig } from './config'
 import { Auth, hashPassword, verifyPassword, requireUser, requireAdmin } from './auth'
 import { Store, publicUser } from './store'
 import { HttpError, isFsError } from './errors'
@@ -31,9 +31,7 @@ export async function createApp(options: AppOptions = {}) {
   const manifestSchema = z.object({ name: z.string().min(1).max(255), directory: z.string().max(4096), size: z.number().int().min(0).max(limits.maxFileSize),
     lastModified: z.number().int().min(0), chunkSize: z.literal(limits.chunkSize), hashes: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(MAX_CHUNKS) }).strict()
     .refine(m => m.hashes.length === Math.ceil(m.size / limits.chunkSize), 'Chunk list does not match the file size')
-  const storageRoot = resolve(options.storageRoot ?? process.env.FB_STORAGE_ROOT ?? './data')
-  const stateDirectory = resolve(options.stateDirectory ?? process.env.FB_STATE_DIR ?? './.filebrowser')
-  if (stateDirectory === storageRoot || stateDirectory.startsWith(storageRoot + '/')) throw new Error('FB_STATE_DIR must be outside FB_STORAGE_ROOT')
+  const { storageRoot, stateDirectory } = storageLocations(options.storageRoot, options.stateDirectory)
   const storage = new LocalStorage(storageRoot, options.uploadFaults?.afterPublishLink)
   await storage.init()
   const store = new Store(stateDirectory)
