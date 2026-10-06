@@ -1,0 +1,14 @@
+ Container filebrowser-redesign-verify-diskfull-1  Running
+ Container filebrowser-redesign-verify-app-1  Running
+ Container filebrowser-redesign-verify-database-1  Running
+PASS file selection updates the details inspector with the verified fixture size
+PASS encoded folder routes survive reload and browser back/forward navigation
+PASS Ctrl+K and Enter open a folder through the command palette
+PASS folder filtering, empty results, reset, and accessible sort direction work
+PASS file overflow menu exposes permitted actions and Escape dismisses it
+PASS theme command and grid layout persist after reload
+PASS settings theme and density persist while showing actual server upload limits
+PASS redesigned transfers and activity filters show matching records
+PASS keyboard shortcut help closes with Escape and G T navigates to transfers
+PASS 390 px mobile and 768 px tablet retain navigation without page overflow
+PASS no unhandled browser JavaScript errors

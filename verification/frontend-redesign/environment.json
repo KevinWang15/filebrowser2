@@ -1,0 +1,166 @@
+{
+  "collectedAt": "2026-10-06T15:10:26.463122+00:00",
+  "mergeCommit": "d381dc44b4ef3c813d0c9c7552f38bbfa1062ba2",
+  "redesignBranch": "frontend-redesign",
+  "redesignCommit": "e606bfb84c49db52ff6142d42a67c2a5f4220f9f",
+  "mergeParents": [
+    "de812b2441b73fa8b82d8ab1373fbbd986eb1ed1",
+    "e606bfb84c49db52ff6142d42a67c2a5f4220f9f"
+  ],
+  "composeProject": "filebrowser-redesign-verify",
+  "testedContainers": [
+    {
+      "container": "filebrowser-redesign-verify-app-1",
+      "image": "sha256:1b82985eab95f3ff765839eca7fc959daa9e350afc1829576ffcf58e68ab6311",
+      "user": "node",
+      "started": "2026-10-06T15:02:19.057072662Z"
+    },
+    {
+      "container": "filebrowser-redesign-verify-diskfull-1",
+      "image": "sha256:805992b75f5fc285d0fb9af005583617f1fca77c48e31ba4a4925e875122afc2",
+      "user": "node",
+      "started": "2026-10-06T15:02:19.076649263Z"
+    },
+    {
+      "container": "filebrowser-redesign-verify-database-1",
+      "image": "sha256:a1d02e4bd40c94d3bf2bdd3678c137388e76d9efcd23c285e9429d336a834b44",
+      "user": "",
+      "started": "2026-10-06T14:57:47.168195796Z"
+    }
+  ],
+  "verificationRunnerImage": "sha256:6a0b9a6f269e6c47c26c54b9f211f210b8381af2cb4a9af32bc2d931d0fc0785",
+  "serverSha256": "7cc5e3e7d0a57e0ea37026fe4880cb9484d7646039e4f81223218405834b7030",
+  "sameServerBundleAsPreviousVerification": true,
+  "unchangedBackendAndSharedSources": {
+    "backend/server.ts": true,
+    "backend/uploads.ts": true,
+    "backend/db.ts": true,
+    "backend/app.ts": true,
+    "backend/store.ts": true,
+    "backend/auth.ts": true,
+    "backend/config.ts": true,
+    "backend/errors.ts": true,
+    "backend/storage/paths.ts": true,
+    "backend/storage/local.ts": true,
+    "backend/storage/interface.ts": true,
+    "shared/types.ts": true
+  },
+  "sourceSha256": {
+    "backend/app.ts": "ed632fa3506503de71f71eee5131e1aef3787b7616cf0c062a074a3e93fea310",
+    "backend/auth.ts": "af9a563d6b9a682aa90550ccc87c30e42ab9e1135f3c0da2e72d3cfd46c64ef5",
+    "backend/config.ts": "39b818246b959096df7660fd2c4e81e391c826a0266af1c63c5d598cf5ae6d55",
+    "backend/db.ts": "ba224294e57ddc869a1dfbc670945016ab77248f7aa322e38f96b10896c8faf9",
+    "backend/errors.ts": "8f33b3a2f8449d03a3fb5935ef60916f60e871b7fa7ad392dea21a978c8ed8c3",
+    "backend/server.ts": "115ee0c30d7ae993d11c3cafded3571599feb4572a8111acba7d376cd6f9bb89",
+    "backend/storage/interface.ts": "3d60e29f41a0f44bc356080a2e10e92a98a0c71c8058c4f306a5157abe3db340",
+    "backend/storage/local.ts": "dbe8110880ebd5fac3d4835de526b2e88a505186fa7814e4c06f2444c7d81571",
+    "backend/storage/paths.ts": "c1c41f0008c593a48ab39143e95cbdfc6fc88b89b67a9b3082541e1e4689a1f7",
+    "backend/store.ts": "bc6a8fed4ba2b69c9cadfa15e0c6138586191c421d2a79ebd2d7f24ff5c2d99e",
+    "backend/uploads.ts": "10a125bdd7524a3bb120fbdc27169ee49eb05051006057d43705080bb5326403",
+    "frontend/App.tsx": "56c30c63375e890ae0a21294ebdccd9995ce9f39e98e49de2c0ca44b933f9f15",
+    "frontend/api.ts": "f0ff07b61d853282048c1be490386ab4b08a0a53a1531e5c70a7b0401170ee8d",
+    "frontend/components/CommandPalette.tsx": "81834d96da1e05a40e1dd5d0ad9d28cfc744e2185b7e740b6eeda7e177afbc03",
+    "frontend/components/FileIcon.tsx": "6b04d259be13a6cebecc346d606ce87cc6d97186eb3159aff73715b65942e02c",
+    "frontend/components/Menu.tsx": "568e3d1dc0f8843a57125ad19300c1ade1702856e1584a49c23630a813e617d5",
+    "frontend/components/Modal.tsx": "fca0b51e3b01c24766a65038498923f11bfd3adb86999433b3a3ef1fe1fdfe33",
+    "frontend/components/Shortcuts.tsx": "54465293635a8623621dc483fc15e0461bacdc1f0a8648aad0b5de36f1a17b28",
+    "frontend/components/Toasts.tsx": "e48c37d1bad4c3e24e70cd107df914d5d034cad37ca338176fb048caaf702ccf",
+    "frontend/components/Tooltips.tsx": "2940b0c57301462df1b478ec1d1d75197771d694a1af220d9f07887a4cad79e6",
+    "frontend/components/ui.tsx": "fdd610f7bc37669a50ab1cc2e360c05212064479e0bddb0836266a7b8ba4557f",
+    "frontend/hash.worker.ts": "610c2026a96b1eb99beaaa5c60fc0e8bff42050f14838ab334385e30b6ae2c3d",
+    "frontend/lib/files.ts": "6a4567b9adc02884784a82110b750bf824e49cc4c967fc94964b092720932b85",
+    "frontend/lib/format.ts": "e4fe7c00dfa5a78b618e4a0cd68b7cb242f9309ee6cc5508042ecbdce7c96a01",
+    "frontend/lib/modalStack.ts": "d8b29a641aa468f72499b1f4d77b95f56c81e7f7f12b1488e9692e41a43e681f",
+    "frontend/lib/notify.ts": "d8c609b3cc14a40f063856fabac01ffb283d823579d7f49bed5263df47e83fea",
+    "frontend/lib/permissions.ts": "6b8e14d69e387334d2ad80616f457b9c053ded541b08bdbee4d019e5158d5ed3",
+    "frontend/lib/prefs.ts": "dc638fd3b8a5340e88b38fda8abd09e56d021bed2d7ab9a4ceb749a324278e69",
+    "frontend/lib/route.ts": "05a62b56f2d801372e5bfd2cfcc98d6fea60cd6cc3c53fb60ad4fcc203c02a8f",
+    "frontend/lib/transfers.ts": "8970a9217b7d197937a8333a4b862d2328424c71bac29044559275652fb29098",
+    "frontend/lib/useWindowing.ts": "90b862ab4d91b04fdc23f39647d6146fcb3d0f5b1dcb5ff054c6ef08aef2d71f",
+    "frontend/main.tsx": "6fefe7219a4e5a6936cc268c1916c2ee9f752ce8f3821a9e10565ccb6da0ea41",
+    "frontend/style.scss": "9bbb0cdda2d2a049cbcce327b2b8b6ed7bb022af84943374013f022eea14bade",
+    "frontend/upload-engine.ts": "eb7730531054070f86a26c3d7977a26d8584bc045466f294c076be3d28971b38",
+    "frontend/views/ActivityView.tsx": "b16051b960337e7c68765428175e582798db5298ce18fd1058b24cf2ed967e92",
+    "frontend/views/AuthScreen.tsx": "48e2359c1a75c4f655886681997dfecbbecee136932c6c3cc507094fa44bcaee",
+    "frontend/views/PeopleView.tsx": "a55a01c80cac25d9f246b9f218f31511a40378341ea22b2df1ea7ac64e24000e",
+    "frontend/views/SettingsView.tsx": "33d7a1d1e62d0d7dc0297027e1579e05651d1a37008a290136e9315277443948",
+    "frontend/views/TransfersView.tsx": "839ac0aecfbc174fb06bfa657a363a30af28fd753e5144fbd126b591f64a6792",
+    "frontend/views/UploadDialog.tsx": "f930ed7068177e7a8fd522c74cc044e126bc3ad65201dd22b04adda2c77024ab",
+    "frontend/views/files/Dialogs.tsx": "8863e395e2f998922ecba7c1748a2adda8f2131d09b5c96e1ed3bac523e4b537",
+    "frontend/views/files/FileList.tsx": "582cb36582b91be6183ec78497a84a81aeef404a42d8da703048fda50390bbed",
+    "frontend/views/files/FileViewer.tsx": "e9478b523d8b2de40898e62c976b63696e7336df3af09bc349a3a21c2f86f492",
+    "frontend/views/files/FilesView.tsx": "b008bf302992f678f4f529034c14f8aae64b26f920447d3e7d527f33ae95e4c8",
+    "frontend/views/files/Inspector.tsx": "38b6937b4526699cb9303ace459bac7ae579f0a1694894218189373dbc753e8e",
+    "frontend/views/files/Preview.tsx": "38f42c8db25b9e9a83cce5d7fde570d5d6cebd699ba186863c4825f26f682808",
+    "frontend/vite-env.d.ts": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
+    "scripts/build-server.mjs": "d0c4df45cfded58f138f1878e2782eb7f63fdb4510beb2ecdd995c1a3d7f6edf",
+    "scripts/verify-container-api.mjs": "3e408f49b40b0566bb0f8d67b3719043392d69e9e523018f6c77b398c84ed34d",
+    "scripts/verify-container-browser-faults.mjs": "3da2692cbfe89c090f59b918b19e854c0bd4fc8caaa7987635d274ab2bd5140a",
+    "scripts/verify-container-browser.mjs": "06cc4bb6d58187b9929f1fd05f64f77029ef218739e13ad60d4920bab6644925",
+    "scripts/verify-container-disk.mjs": "1a2650ad7e83e2b0584e202c8fafd1545038772da5ff1c4d5e3fed006c458c57",
+    "scripts/verify-container-faults.mjs": "410436974d02d4646ab810e917cbf9a50d1244a1ccf32aaed5e49e8b4af77b86",
+    "scripts/verify-container-redesign.mjs": "d3cb246e517fbad008c26b711309c1ba1c70d73f08f3beba42970765769b70d6",
+    "scripts/verify-container-upload.mjs": "f70410ac7a9641ccbd4222c78ef0d7fc221e149f90bfef1a7f33f1ce24924176",
+    "shared/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "shared/types.ts": "5cdf3cdc8b9c57c45f8d8e749890b59c7f3b4583ebc1671bb89f5a6ce9b8093c",
+    "tests/app.test.js": "ac3789d01740b4f4ee9b4648b0c9c90782815d7a0e24c43ea6b88d206b3c0356",
+    "tests/config.test.js": "6e650a42fa7c963439d3355661ce8b1742be0a985e062f659bd67d96c7968790",
+    "tests/crash.test.js": "e360c421adabb9ac485726ccb84477e744f75cbb0c4a7f11dbab6d0c4fcc1f12",
+    "tests/e2e/filebrowser.spec.ts": "9fb6ae51dfe557cab6912341b74551a1e10f5dd5f9422050431b84b96ffe190b",
+    "tests/fixtures/crash-server.js": "9998bc7c59b93e548665195e21297f664d40159beea1de97046938e7a1acb9ca",
+    "tests/fixtures/e2e-server.js": "5a65e8d099f0d61da0f5835b9eca121eea8a83920dd8327bec433a4e2290490e",
+    "tests/large-upload.test.js": "50090ee6d2fe10710947c3651e40155cc070ef2abbbfc192677bfb45e845ef3d",
+    "tests/prisma.test.js": "17f46cf5798b77d1d6e3ab240ed021f9eeb26712cad5df0e2cac2dd42392a15a",
+    "tests/production.test.js": "cb37df1d2d8f40ce4970598120d254c46831b6a8173cb91917955eba989992a1",
+    "tests/recovery.test.js": "f3fb0b4327784e1f63b10fd66c8bcc55ae4ce2fbe55ff28dddd63738c46bbc16",
+    "tests/starter.test.js": "f112dab50a067b6e493f9534f000c43ecf1b2e2bbd6a17815ab544e00cb8036b",
+    "package.json": "12ff9bd23e90625b30e2334ef6ae94fae2b2160370cd4e915e1a8b5adf98bbbe",
+    "package-lock.json": "b0bf53ce3f9bbb04a5f40a214c79907658923bb1aeae69223b96a5f3d2ac7f30",
+    "vite.config.ts": "25cf7a0afde7df6dcbc7f1ed82958ad79ab641522b01bd058af10956fff9d204",
+    "Dockerfile": "9e7c0111d90e22ae6d06cb6f3ff59f576e35f1505db420092ccf8512f95293be",
+    "compose.verify.yml": "039fc4bb507cb2e0eb6b1d933bc8dc13b0c3e5a240a7df508d83a76da441a288"
+  },
+  "hostKernel": "6.8.0-142-generic",
+  "docker": "29.1.3",
+  "compose": "2.40.3+ds1-0ubuntu1~24.04.1",
+  "node": "v24.21.0",
+  "npm": "11.19.0",
+  "chunkOverrideBytes": 102400,
+  "defaultChunkBytes": 104857600,
+  "viewports": [
+    [
+      1440,
+      980
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      768,
+      844
+    ]
+  ],
+  "oneGiBFixture": "seeded-fixture.json",
+  "screenshots": 48,
+  "productionScreenshots": 40,
+  "defaultBrowserScreenshots": 8,
+  "browserChecks": 30,
+  "stoppedContainers": [
+    {
+      "container": "filebrowser-redesign-verify-app-1",
+      "status": "exited",
+      "exitCode": 0
+    },
+    {
+      "container": "filebrowser-redesign-verify-diskfull-1",
+      "status": "exited",
+      "exitCode": 0
+    },
+    {
+      "container": "filebrowser-redesign-verify-database-1",
+      "status": "exited",
+      "exitCode": 0
+    }
+  ]
+}

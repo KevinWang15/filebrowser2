@@ -1,0 +1,119 @@
+ Volume filebrowser-redesign-verify_verify-files  Creating
+ Volume filebrowser-redesign-verify_verify-files  Created
+ Volume filebrowser-redesign-verify_verify-state  Creating
+ Volume filebrowser-redesign-verify_verify-state  Created
+
+> filebrowser@0.1.0 check
+> npm run lint && npm run build && npm test
+
+
+> filebrowser@0.1.0 lint
+> eslint . --max-warnings 0
+
+
+> filebrowser@0.1.0 build
+> npm run typecheck && npm run build:client && npm run build:server
+
+
+> filebrowser@0.1.0 typecheck
+> npm run db:generate && tsc --noEmit && tsc --noEmit -p tsconfig.node.json
+
+
+> filebrowser@0.1.0 db:generate
+> prisma generate
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (7.10.0) to ./backend/generated/prisma in 47ms
+
+
+> filebrowser@0.1.0 build:client
+> vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 6293 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/index.html                                                     1.73 kB │ gzip:   0.88 kB
+dist/client/assets/jetbrains-mono-vietnamese-wght-normal-Bt-aOZkq.woff2    7.50 kB
+dist/client/assets/jetbrains-mono-greek-wght-normal-Bw9x6K1M.woff2         9.00 kB
+dist/client/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2            10.25 kB
+dist/client/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2             11.23 kB
+dist/client/assets/jetbrains-mono-cyrillic-wght-normal-D73BlboJ.woff2     12.10 kB
+dist/client/assets/jetbrains-mono-latin-ext-wght-normal-DBQx-q_a.woff2    15.19 kB
+dist/client/assets/hash.worker-CSddmu_5.js                                18.61 kB
+dist/client/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2              18.74 kB
+dist/client/assets/inter-greek-wght-normal-CkhJZR-_.woff2                 18.99 kB
+dist/client/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2          25.96 kB
+dist/client/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2        40.40 kB
+dist/client/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                 48.25 kB
+dist/client/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2             85.06 kB
+dist/client/assets/index-5D8NFCCs.css                                     61.61 kB │ gzip:  14.61 kB
+dist/client/assets/index-CgiYgxKH.js                                     359.79 kB │ gzip: 105.37 kB
+
+✓ built in 1.75s
+
+> filebrowser@0.1.0 build:server
+> node scripts/build-server.mjs
+
+
+  dist/server/server.js       60.8kb
+  dist/server/server.js.map  112.1kb
+
+⚡ Done in 21ms
+
+> filebrowser@0.1.0 test
+> node --import tsx --test tests/*.test.js
+
+✔ setup is one-time; credentials, sessions, CSRF, and instance exclusion are enforced (1808.022715ms)
+✔ scopes, permission changes, symlinks, traversal, and last-admin protections (1326.162192ms)
+✔ multi-connection chunks verify, append once, survive lost acknowledgments, and publish without a copy (895.582216ms)
+✔ bad checksums, incomplete parts, stale attempts, and restart tails roll back the whole chunk (782.290024ms)
+✔ visible .uploading files share their stage inode, report committed bytes, and cannot be read or mutated (622.337688ms)
+✔ suffix collisions preserve unrelated files; canceled transfers release both names without deleting replacements (962.630673ms)
+✔ legacy private targets migrate without copying; a lost public alias is restored on restart (749.717923ms)
+✔ 255-byte Unicode names and completed files ending .uploading remain supported (764.757676ms)
+✔ orphan cleanup removes abandoned aliases but preserves suffix-named completed files sharing the old inode (753.355754ms)
+✔ runtime chunk overrides are bounded and report a feasible manifest size (3.383019ms)
+✔ an existing upload resumes with its stored chunk size after a runtime configuration change (1142.607896ms)
+✔ SIGKILL after append recovers atomically without duplicate bytes (2695.957331ms)
+✔ SIGKILL after publish-link recovers atomically without duplicate bytes (2791.894797ms)
+✔ SIGKILL after publish recovers atomically without duplicate bytes (2569.938364ms)
+✔ SIGKILL after cancel recovers atomically without duplicate bytes (2476.895838ms)
+✔ real 100 MiB chunk, interrupted connections, strict ordering, and a 200 GiB manifest (3511.823498ms)
+▶ Prisma works without checked-in models or generated code
+  ✔ validates and generates an empty schema without database credentials (5517.299479ms)
+  ✔ generates typed model queries from a temporary schema (2920.377351ms)
+  ✔ deploys a migration and queries a disposable PostgreSQL database (4060.065765ms)
+✔ Prisma works without checked-in models or generated code (12517.088993ms)
+✔ relocated production bundle serves setup, authenticated files, static assets, and shuts down cleanly (1121.461051ms)
+✔ missing committed bytes fail visibly; canceled attempts release their reservation (1201.182946ms)
+▶ starter tooling works in an isolated temporary project
+  ✔ typechecks frontend, backend, and shared modules (3789.152695ms)
+  ✔ runs aliases, mixed ESM/CommonJS packages, and extensionless dynamic imports in Node (347.611986ms)
+  ✔ discovers TS modules by file URL after additions and deletions (2552.935045ms)
+  ✔ runs the same TypeScript entry with the IDE launch runtime (485.277416ms)
+  ✔ reconnects to the inspector and hits mapped TS breakpoints after nodemon restarts (1672.015215ms)
+  ✔ reports uncaught exceptions with the original TypeScript line (336.199872ms)
+  ✔ builds React, mixed ESM/CommonJS packages, shared imports, and SCSS for production (937.905524ms)
+[vite:react-swc] We recommend switching to `@vitejs/plugin-react` for improved performance as no swc plugins are used. More information at https://vite.dev/rolldown
+3:00:30 PM [vite] (client) page reload shared/value.ts
+  ✔ serves frontend modules and notifies clients of shared changes (1195.80591ms)
+  ✔ nodemon restarts backend changes, ignores frontend output, and recovers after errors (3362.404242ms)
+✔ starter tooling works in an isolated temporary project (14708.411068ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15844.912742
+npm notice
+npm notice New major version of npm available! 11.19.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
