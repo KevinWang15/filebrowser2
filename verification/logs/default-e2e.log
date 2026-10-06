@@ -1,0 +1,64 @@
+
+> filebrowser@0.1.0 test:e2e
+> npm run build && playwright test
+
+
+> filebrowser@0.1.0 build
+> npm run typecheck && npm run build:client && npm run build:server
+
+
+> filebrowser@0.1.0 typecheck
+> npm run db:generate && tsc --noEmit && tsc --noEmit -p tsconfig.node.json
+
+
+> filebrowser@0.1.0 db:generate
+> prisma generate
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (7.10.0) to ./backend/generated/prisma in 53ms
+
+
+> filebrowser@0.1.0 build:client
+> vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 1901 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/index.html                                              0.59 kB │ gzip:  0.35 kB
+dist/client/assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2    8.52 kB
+dist/client/assets/manrope-greek-wght-normal-DL7QRZyv.woff2         9.44 kB
+dist/client/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2     14.50 kB
+dist/client/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2    15.12 kB
+dist/client/assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2    18.22 kB
+dist/client/assets/hash.worker-CSddmu_5.js                         18.61 kB
+dist/client/assets/manrope-latin-wght-normal-DHIcAJRg.woff2        24.83 kB
+dist/client/assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2        36.93 kB
+dist/client/assets/index-Dt0ZM927.css                              40.62 kB │ gzip: 11.70 kB
+dist/client/assets/index-Dp8asCT7.js                              290.24 kB │ gzip: 88.36 kB
+
+✓ built in 1.17s
+
+> filebrowser@0.1.0 build:server
+> node scripts/build-server.mjs
+
+
+  dist/server/server.js       54.7kb
+  dist/server/server.js.map  100.6kb
+
+⚡ Done in 17ms
+
+Running 1 test using 1 worker
+
+  ✓  1 tests/e2e/filebrowser.spec.ts:6:1 › setup, file operations, worker hashing, reload resume, scoped users, and mobile layout (33.9s)
+
+  1 passed (37.5s)
+npm notice
+npm notice New major version of npm available! 11.19.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

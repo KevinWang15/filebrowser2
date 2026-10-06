@@ -1,0 +1,44 @@
+ Container filebrowser-verify-database-1  Running
+ Container filebrowser-verify-diskfull-1  Running
+ Container filebrowser-verify-app-1  Running
+PASS production container advertises 100 KiB override: {"chunkSize":102400,"maxFileSize":1228800000,"maxConnections":4}
+PASS authenticated production API
+PASS one-time setup and anonymous access denial
+PASS unsafe names and malformed manifests rejected
+PASS 1 GiB manifest initializes idempotently: 10486 unique chunks; last chunk 77824 bytes
+PASS visible .uploading alias shares inode and rejects download, rename, delete, and another upload
+PASS next chunk cannot start before the current durable commit
+PASS checksum mismatch rolls back and deletes the entire chunk
+PASS short part poisons and discards the attempt
+PASS one failed part closes a stalled sibling and permits whole-chunk retry
+PROGRESS 1/10486 committed=102400
+PASS expired token cannot affect a new current attempt
+PROGRESS 501/10486 committed=51302400
+PROGRESS 1001/10486 committed=102502400
+PROGRESS 1501/10486 committed=153702400
+PROGRESS 2001/10486 committed=204902400
+PROGRESS 2501/10486 committed=256102400
+PROGRESS 3001/10486 committed=307302400
+PROGRESS 3501/10486 committed=358502400
+PROGRESS 4001/10486 committed=409702400
+RESTART_CHECKPOINT {"id":"b1574a4a-697f-4483-88cc-aec2697c6c55","nextChunk":4096,"committedBytes":419430400,"requestTime":"2026-10-06T12:36:41.774Z"}
+PASS production container SIGKILL/restart preserves acknowledged offset: 419430400 bytes / 4096 chunks
+PROGRESS 4501/10486 committed=460902400
+PROGRESS 5001/10486 committed=512102400
+PROGRESS 5501/10486 committed=563302400
+PROGRESS 6001/10486 committed=614502400
+PROGRESS 6501/10486 committed=665702400
+PROGRESS 7001/10486 committed=716902400
+PROGRESS 7501/10486 committed=768102400
+PROGRESS 8001/10486 committed=819302400
+PROGRESS 8501/10486 committed=870502400
+PROGRESS 9001/10486 committed=921702400
+PROGRESS 9501/10486 committed=972902400
+PROGRESS 10001/10486 committed=1024102400
+PASS all 10486 chunks committed in strict order: 42 replayed commits; 106 chunks with 4 connections; max temporary chunk=102400
+PASS completed 1 GiB file matches full SHA-256: 50a231f30de9bb7e2905a389f7f99a2d53d7e5be17981bcb3a83b4c6052b6644
+PASS staging cleanup and idempotent publication: 352.8 seconds including controlled restart
+PASS publication retains the same inode without a final copy: 3772030
+PASS .uploading suffix disappears only after verified completion: 1073741824 bytes; inode 3772030 retained through restart and move
+PASS a completed destination cannot be overwritten
+PASS large-file byte range returns the expected unique chunk bytes

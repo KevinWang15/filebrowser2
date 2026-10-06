@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "events": [
+    {
+      "event": "filled-tmpfs-to-ENOSPC",
+      "time": "2026-10-06T12:34:17.559Z",
+      "error": "ENOSPC",
+      "written": 16855040,
+      "available": 0
+    },
+    {
+      "event": "SIGKILL-and-restart",
+      "time": "2026-10-06T12:36:43.918Z",
+      "previousPid": 2575387,
+      "nextPid": 2607506,
+      "checkpoint": {
+        "id": "b1574a4a-697f-4483-88cc-aec2697c6c55",
+        "nextChunk": 4096,
+        "committedBytes": 419430400,
+        "requestTime": "2026-10-06T12:36:41.774Z"
+      }
+    }
+  ],
+  "samples": 182
+}

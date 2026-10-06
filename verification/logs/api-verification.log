@@ -1,0 +1,16 @@
+PASS HttpOnly, SameSite cookie and public account without password hash
+PASS anonymous access, foreign origins, and missing CSRF header rejected
+PASS empty files publish correctly and unsafe markup downloads as sandboxed attachments
+PASS suffix byte range is correct; invalid, multipart, and empty ranges return 416
+PASS root mutations and malformed manifests rejected
+PASS incomplete publication/commit and ancestor rename/deletion cannot bypass an active transfer
+PASS all six denied permissions, administration, and other-user sessions are enforced by the API
+PASS cancellation removes staging, fences old attempts, and preserves unrelated files
+PASS granting only read enables that action; every access change revokes old sessions
+PASS granting only download enables that action; every access change revokes old sessions
+PASS granting only upload enables that action; every access change revokes old sessions
+PASS granting only create enables that action; every access change revokes old sessions
+PASS granting only rename enables that action; every access change revokes old sessions
+PASS granting only delete enables that action; every access change revokes old sessions
+PASS administrator password reset and disable revoke sessions and reject old credentials
+PASS audit records persisted account changes and completed uploads; fixtures cleaned

@@ -1,0 +1,177 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.46kB done
+#1 DONE 0.0s
+
+#2 [diskfull internal] load build definition from Dockerfile
+#2 transferring dockerfile: 889B done
+#2 DONE 0.0s
+
+#3 [runner internal] load metadata for ghcr.io/puppeteer/puppeteer:25.9.0
+#3 DONE 0.1s
+
+#4 [app internal] load metadata for docker.io/library/node:24-bookworm-slim
+#4 DONE 0.1s
+
+#5 [app internal] load .dockerignore
+#5 transferring context: 157B done
+#5 DONE 0.0s
+
+#6 [runner internal] load build context
+#6 DONE 0.0s
+
+#7 [runner build 1/6] FROM docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+#7 resolve docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+#7 resolve docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 0.1s done
+#7 DONE 0.1s
+
+#8 [runner verification 1/5] FROM ghcr.io/puppeteer/puppeteer:25.9.0@sha256:5c341215d78353c3416b6c92aae9fac66e8f11c146c3753234980443d6792f8f
+#8 resolve ghcr.io/puppeteer/puppeteer:25.9.0@sha256:5c341215d78353c3416b6c92aae9fac66e8f11c146c3753234980443d6792f8f 0.1s done
+#8 DONE 0.1s
+
+#6 [runner internal] load build context
+#6 transferring context: 317.64kB 0.0s done
+#6 DONE 0.1s
+
+#9 [app build 3/6] COPY package.json package-lock.json ./
+#9 CACHED
+
+#10 [app build 2/6] WORKDIR /app
+#10 CACHED
+
+#11 [app build 4/6] RUN npm ci
+#11 CACHED
+
+#10 [runner build 2/6] WORKDIR /app
+#10 CACHED
+
+#9 [runner build 3/6] COPY package.json package-lock.json ./
+#9 CACHED
+
+#12 [diskfull build 5/6] COPY . .
+#12 DONE 0.3s
+
+#13 [app build 6/6] RUN npm run build
+#13 0.505 
+#13 0.505 > filebrowser@0.1.0 build
+#13 0.505 > npm run typecheck && npm run build:client && npm run build:server
+#13 0.505 
+#13 0.681 
+#13 0.681 > filebrowser@0.1.0 typecheck
+#13 0.681 > npm run db:generate && tsc --noEmit && tsc --noEmit -p tsconfig.node.json
+#13 0.681 
+#13 0.919 
+#13 0.919 > filebrowser@0.1.0 db:generate
+#13 0.919 > prisma generate
+#13 0.919 
+#13 2.371 Loaded Prisma config from prisma.config.ts.
+#13 2.371 
+#13 2.413 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#13 2.413 Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#13 2.417 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#13 2.417 Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#13 2.686 Prisma schema loaded from prisma/schema.prisma.
+#13 2.754 
+#13 2.754 ✔ Generated Prisma Client (7.10.0) to ./backend/generated/prisma in 41ms
+#13 2.754 
+#13 9.900 
+#13 9.900 > filebrowser@0.1.0 build:client
+#13 9.900 > vite build
+#13 9.900 
+#13 10.25 vite v8.3.0 building client environment for production...
+#13 10.27 transforming...
+#13 11.10 ✓ 1901 modules transformed.
+#13 11.26 rendering chunks...
+#13 11.36 computing gzip size...
+#13 11.37 dist/client/index.html                                              0.59 kB │ gzip:  0.35 kB
+#13 11.37 dist/client/assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2    8.52 kB
+#13 11.37 dist/client/assets/manrope-greek-wght-normal-DL7QRZyv.woff2         9.44 kB
+#13 11.37 dist/client/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2     14.50 kB
+#13 11.37 dist/client/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2    15.12 kB
+#13 11.37 dist/client/assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2    18.22 kB
+#13 11.37 dist/client/assets/hash.worker-CSddmu_5.js                         18.61 kB
+#13 11.37 dist/client/assets/manrope-latin-wght-normal-DHIcAJRg.woff2        24.83 kB
+#13 11.37 dist/client/assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2        36.93 kB
+#13 11.37 dist/client/assets/index-CX_w-19a.css                              41.01 kB │ gzip: 11.81 kB
+#13 11.37 dist/client/assets/index-XRgsg7pB.js                              291.07 kB │ gzip: 88.58 kB
+#13 11.37 
+#13 11.37 ✓ built in 1.12s
+#13 11.63 
+#13 11.63 > filebrowser@0.1.0 build:server
+#13 11.63 > node scripts/build-server.mjs
+#13 11.63 
+#13 11.74 
+#13 11.74   dist/server/server.js       60.7kb
+#13 11.74   dist/server/server.js.map  111.7kb
+#13 11.74 
+#13 11.74 ⚡ Done in 20ms
+#13 DONE 11.9s
+
+#14 [app runtime 4/5] RUN npm ci --omit=dev && mkdir /files /state && chown node:node /files /state
+#14 CACHED
+
+#15 [runner verification 2/5] COPY --from=build /usr/local/ /usr/local/
+#15 CACHED
+
+#16 [runner verification 3/5] WORKDIR /app
+#16 CACHED
+
+#17 [diskfull runtime 5/5] COPY --from=build /app/dist ./dist
+#17 DONE 0.2s
+
+#18 [app] exporting to image
+#18 exporting layers
+#18 exporting layers 0.3s done
+#18 exporting manifest sha256:59f8c115e7d737105d99b4ab20291a280adfe0c38d1e1b662c4093d58b5f3367 0.1s done
+#18 exporting config sha256:17ad658398c4716b282700b1fdff6fb61e699831216922866ca50bbdeaa8b0e9
+#18 exporting config sha256:17ad658398c4716b282700b1fdff6fb61e699831216922866ca50bbdeaa8b0e9 0.1s done
+#18 exporting attestation manifest sha256:d4e071188d9e4a7d5183bf1ab7ac7dc4df150d8ef964af1c65c7377e8041bec7
+#18 exporting attestation manifest sha256:d4e071188d9e4a7d5183bf1ab7ac7dc4df150d8ef964af1c65c7377e8041bec7 0.1s done
+#18 exporting manifest list sha256:297bdd1beffca28c97a7cb9a9fe1e31a5331816aee90939fb1b25373c81ee99f 0.1s done
+#18 naming to docker.io/library/filebrowser-verify-app:latest done
+#18 unpacking to docker.io/library/filebrowser-verify-app:latest
+#18 unpacking to docker.io/library/filebrowser-verify-app:latest 0.1s done
+#18 DONE 0.8s
+
+#19 [diskfull] exporting to image
+#19 exporting layers 0.2s done
+#19 exporting manifest sha256:3960007b4bae3b6a6d374d2ce305bf885494774a72604d455bbec53cbde79668 0.1s done
+#19 exporting config sha256:bea295e143e0b2b8cfbdbc13cf525e076af24aef9a8ce7dbac08dd4aa7cd9470 0.1s done
+#19 exporting attestation manifest sha256:92a42678080cdf3c55ef34239945159b001e201b7ad5d2abbf35235e5c40eff0 0.1s done
+#19 exporting manifest list sha256:5d764aa7b5b4baf158835ca10c20c841bfcf50f191cca25af11a6419bca6be81 0.1s done
+#19 naming to docker.io/library/filebrowser-verify-diskfull:latest 0.0s done
+#19 unpacking to docker.io/library/filebrowser-verify-diskfull:latest 0.1s done
+#19 DONE 0.8s
+
+#20 [runner verification 4/5] COPY --from=build /app/ /app/
+#20 ...
+
+#21 [diskfull] resolving provenance for metadata file
+#21 DONE 0.0s
+
+#22 [app] resolving provenance for metadata file
+#22 DONE 0.0s
+
+#20 [runner verification 4/5] COPY --from=build /app/ /app/
+#20 DONE 10.0s
+
+#23 [runner verification 5/5] RUN ln -s /home/pptruser/.cache/puppeteer/chrome/*/chrome-linux64/chrome /usr/local/bin/filebrowser-chromium
+#23 DONE 0.6s
+
+#24 [runner] exporting to image
+#24 exporting layers
+#24 exporting layers 54.3s done
+#24 exporting manifest sha256:a49871b0b9cfd2005db79c131f97df160c0f10c8cd956240783c02fb484446d5 0.0s done
+#24 exporting config sha256:2b9fd6954346f6c78f1add2ad6bbe5672b32e0f329f539f7d5f19e14a7523d99 0.1s done
+#24 exporting attestation manifest sha256:427d13184fc58d16e7303b514a5f43a06c3c0df1bfd259ee2f7c3e2b32c48f0b 0.1s done
+#24 exporting manifest list sha256:8f97564984e3379808016f0d02c258c00d0a1be357bfe1ebae08ea38d79b1cd8
+#24 exporting manifest list sha256:8f97564984e3379808016f0d02c258c00d0a1be357bfe1ebae08ea38d79b1cd8 0.1s done
+#24 naming to docker.io/library/filebrowser-verify-runner:latest 0.0s done
+#24 unpacking to docker.io/library/filebrowser-verify-runner:latest
+#24 unpacking to docker.io/library/filebrowser-verify-runner:latest 14.2s done
+#24 DONE 68.9s
+
+#25 [runner] resolving provenance for metadata file
+#25 DONE 0.0s
+ filebrowser-verify-app  Built
+ filebrowser-verify-diskfull  Built
+ filebrowser-verify-runner  Built

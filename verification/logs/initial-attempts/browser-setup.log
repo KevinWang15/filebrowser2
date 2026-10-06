@@ -1,0 +1,15 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.goto: net::ERR_SSL_PROTOCOL_ERROR at http://app:3000/
+Call log:
+  - navigating to "http://app:3000/", waiting until "load"
+
+    at /app/scripts/verify-container-browser.mjs:36:16 {
+  log: [ '  - navigating to "http://app:3000/", waiting until "load"' ],
+  name: 'Error'
+}
+
+Node.js v24.21.0
+

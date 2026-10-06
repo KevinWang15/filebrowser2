@@ -1,0 +1,11 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../backend/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Define your application's models here.

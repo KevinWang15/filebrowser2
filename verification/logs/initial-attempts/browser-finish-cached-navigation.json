@@ -1,0 +1,28 @@
+{
+  "status": "FAIL",
+  "phase": "finish",
+  "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('heading', { name: 'Good to see you again.' }) to be visible\n\n    at /app/scripts/verify-container-browser.mjs:153:71",
+  "results": [
+    {
+      "name": "text preview and byte-identical browser download",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "folder creation, selection, rename, and list/grid views",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "100 KiB browser chunks, four connections, lost connection, reload, wrong-source rejection, and byte-identical resumption",
+      "status": "PASS",
+      "detail": "12582912 bytes"
+    },
+    {
+      "name": "scoped member sees only their root; download, upload, traversal, and administration denied",
+      "status": "PASS",
+      "detail": ""
+    }
+  ],
+  "errors": []
+}

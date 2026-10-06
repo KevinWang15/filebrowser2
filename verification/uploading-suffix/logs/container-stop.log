@@ -1,0 +1,6 @@
+ Container filebrowser-verify-diskfull-1  Stopping
+ Container filebrowser-verify-database-1  Stopping
+ Container filebrowser-verify-app-1  Stopping
+ Container filebrowser-verify-diskfull-1  Stopped
+ Container filebrowser-verify-app-1  Stopped
+ Container filebrowser-verify-database-1  Stopped

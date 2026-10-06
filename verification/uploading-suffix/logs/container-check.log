@@ -1,0 +1,113 @@
+ Container filebrowser-verify-database-1  Running
+ Container filebrowser-verify-app-1  Running
+ Container filebrowser-verify-diskfull-1  Running
+
+> filebrowser@0.1.0 check
+> npm run lint && npm run build && npm test
+
+
+> filebrowser@0.1.0 lint
+> eslint . --max-warnings 0
+
+
+> filebrowser@0.1.0 build
+> npm run typecheck && npm run build:client && npm run build:server
+
+
+> filebrowser@0.1.0 typecheck
+> npm run db:generate && tsc --noEmit && tsc --noEmit -p tsconfig.node.json
+
+
+> filebrowser@0.1.0 db:generate
+> prisma generate
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (7.10.0) to ./backend/generated/prisma in 59ms
+
+
+> filebrowser@0.1.0 build:client
+> vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 1901 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/index.html                                              0.59 kB │ gzip:  0.35 kB
+dist/client/assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2    8.52 kB
+dist/client/assets/manrope-greek-wght-normal-DL7QRZyv.woff2         9.44 kB
+dist/client/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2     14.50 kB
+dist/client/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2    15.12 kB
+dist/client/assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2    18.22 kB
+dist/client/assets/hash.worker-CSddmu_5.js                         18.61 kB
+dist/client/assets/manrope-latin-wght-normal-DHIcAJRg.woff2        24.83 kB
+dist/client/assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2        36.93 kB
+dist/client/assets/index-CX_w-19a.css                              41.01 kB │ gzip: 11.81 kB
+dist/client/assets/index-XRgsg7pB.js                              291.07 kB │ gzip: 88.58 kB
+
+✓ built in 1.12s
+
+> filebrowser@0.1.0 build:server
+> node scripts/build-server.mjs
+
+
+  dist/server/server.js       60.8kb
+  dist/server/server.js.map  112.1kb
+
+⚡ Done in 21ms
+
+> filebrowser@0.1.0 test
+> node --import tsx --test tests/*.test.js
+
+✔ setup is one-time; credentials, sessions, CSRF, and instance exclusion are enforced (1993.698488ms)
+✔ scopes, permission changes, symlinks, traversal, and last-admin protections (1369.900044ms)
+✔ multi-connection chunks verify, append once, survive lost acknowledgments, and publish without a copy (893.85105ms)
+✔ bad checksums, incomplete parts, stale attempts, and restart tails roll back the whole chunk (884.46832ms)
+✔ visible .uploading files share their stage inode, report committed bytes, and cannot be read or mutated (702.00582ms)
+✔ suffix collisions preserve unrelated files; canceled transfers release both names without deleting replacements (713.108051ms)
+✔ legacy private targets migrate without copying; a lost public alias is restored on restart (783.470957ms)
+✔ 255-byte Unicode names and completed files ending .uploading remain supported (723.430859ms)
+✔ orphan cleanup removes abandoned aliases but preserves suffix-named completed files sharing the old inode (856.671818ms)
+✔ runtime chunk overrides are bounded and report a feasible manifest size (3.691175ms)
+✔ an existing upload resumes with its stored chunk size after a runtime configuration change (1154.148604ms)
+✔ SIGKILL after append recovers atomically without duplicate bytes (2818.050507ms)
+✔ SIGKILL after publish-link recovers atomically without duplicate bytes (2740.357492ms)
+✔ SIGKILL after publish recovers atomically without duplicate bytes (2340.828442ms)
+✔ SIGKILL after cancel recovers atomically without duplicate bytes (2455.225637ms)
+✔ real 100 MiB chunk, interrupted connections, strict ordering, and a 200 GiB manifest (3663.803055ms)
+▶ Prisma works without checked-in models or generated code
+  ✔ validates and generates an empty schema without database credentials (5995.843182ms)
+  ✔ generates typed model queries from a temporary schema (2860.642739ms)
+  ✔ deploys a migration and queries a disposable PostgreSQL database (4357.382701ms)
+✔ Prisma works without checked-in models or generated code (13233.382963ms)
+✔ relocated production bundle serves setup, authenticated files, static assets, and shuts down cleanly (1351.542319ms)
+✔ missing committed bytes fail visibly; canceled attempts release their reservation (1215.068073ms)
+▶ starter tooling works in an isolated temporary project
+  ✔ typechecks frontend, backend, and shared modules (4307.185076ms)
+  ✔ runs aliases, mixed ESM/CommonJS packages, and extensionless dynamic imports in Node (366.95488ms)
+  ✔ discovers TS modules by file URL after additions and deletions (2337.822097ms)
+  ✔ runs the same TypeScript entry with the IDE launch runtime (460.419661ms)
+  ✔ reconnects to the inspector and hits mapped TS breakpoints after nodemon restarts (1596.0751ms)
+  ✔ reports uncaught exceptions with the original TypeScript line (360.005633ms)
+  ✔ builds React, mixed ESM/CommonJS packages, shared imports, and SCSS for production (958.959546ms)
+[vite:react-swc] We recommend switching to `@vitejs/plugin-react` for improved performance as no swc plugins are used. More information at https://vite.dev/rolldown
+12:35:27 PM [vite] (client) page reload shared/value.ts
+  ✔ serves frontend modules and notifies clients of shared changes (1057.812437ms)
+  ✔ nodemon restarts backend changes, ignores frontend output, and recovers after errors (3355.771519ms)
+✔ starter tooling works in an isolated temporary project (14836.792502ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16042.780605
+npm notice
+npm notice New major version of npm available! 11.19.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

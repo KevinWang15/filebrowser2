@@ -1,0 +1,101 @@
+{
+  "name": "filebrowser",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently --kill-others --names api,web \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "nodemon backend/server.ts",
+    "typecheck": "npm run db:generate && tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
+    "build": "npm run typecheck && npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "node scripts/build-server.mjs",
+    "start": "node --enable-source-maps dist/server/server.js",
+    "lint": "eslint . --max-warnings 0",
+    "preview": "vite preview",
+    "ts": "tsx",
+    "ts:watch": "nodemon",
+    "ts:debug": "nodemon --inspect-brk=127.0.0.1:9229",
+    "test": "node --import tsx --test tests/*.test.js",
+    "check": "npm run lint && npm run build && npm test",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:format": "prisma format",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "test:e2e": "npm run build && playwright test"
+  },
+  "nodemonConfig": {
+    "exec": "node --import tsx",
+    "ext": "ts,tsx,mts,cts,js,jsx,mjs,cjs,json",
+    "ignore": [
+      "frontend/**",
+      "dist/**",
+      "backend/generated/**",
+      "data/**",
+      ".filebrowser/**",
+      "test-results/**",
+      "playwright-report/**"
+    ],
+    "signal": "SIGTERM",
+    "watch": [
+      "backend",
+      "shared",
+      "package.json",
+      "prisma.config.ts"
+    ]
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/static": "^10.1.3",
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.12.4",
+    "hash-wasm": "^4.12.0",
+    "lucide-react": "^1.52.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.13.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react-swc": "^4.3.3",
+    "concurrently": "^10.0.5",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "nodemon": "^3.1.14",
+    "prisma": "7.10.0",
+    "sass": "^1.104.0",
+    "tsx": "^4.23.13",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.0",
+    "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "^8.0.2"
+    },
+    "prisma": {
+      "mysql2": "^3.24.4"
+    },
+    "nodemon": {
+      "chokidar": "^4.0.3"
+    }
+  }
+}

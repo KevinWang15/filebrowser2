@@ -1,0 +1,21 @@
+PASS text preview and byte-identical browser download
+PASS folder creation, selection, rename, and list/grid views
+PASS 100 KiB browser chunks, four connections, lost connection, reload, wrong-source rejection, and byte-identical resumption: 12582912 bytes
+PASS scoped member sees only their root; download, upload, traversal, and administration denied
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('heading', { name: 'Good to see you again.' }) to be visible
+
+    at /app/scripts/verify-container-browser.mjs:153:71 {
+  log: [
+    "  - waiting for getByRole('heading', { name: 'Good to see you again.' }) to be visible"
+  ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.21.0
+

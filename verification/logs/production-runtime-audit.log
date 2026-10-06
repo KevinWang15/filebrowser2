@@ -1,0 +1,27 @@
+v24.21.0
+11.19.0
+uid=1000(node) gid=1000(node) groups=1000(node)
+1c0603b4490a56881a45721864933c9570625e9e5c777bff446dc3a5e3477a67  dist/server/server.js
+31f17c7a6e92648fd244fc5ab166e40b719667e2990be1e057f69f4bf1577044  dist/client/assets/index-Dp8asCT7.js
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {},
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "dependencies": {
+      "prod": 233,
+      "dev": 258,
+      "optional": 80,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 491
+    }
+  }
+}

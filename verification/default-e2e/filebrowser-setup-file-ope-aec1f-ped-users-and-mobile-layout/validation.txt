@@ -1,0 +1,1 @@
+Setup, scoped users, text preview, byte-identical download, SHA-256 worker, 101 MiB upload, and reload resume verified.

@@ -1,0 +1,69 @@
+{
+  "status": "PASS",
+  "results": [
+    {
+      "name": "HttpOnly, SameSite cookie and public account without password hash",
+      "status": "PASS"
+    },
+    {
+      "name": "anonymous access, foreign origins, and missing CSRF header rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "empty files publish correctly and unsafe markup downloads as sandboxed attachments",
+      "status": "PASS"
+    },
+    {
+      "name": "suffix byte range is correct; invalid, multipart, and empty ranges return 416",
+      "status": "PASS"
+    },
+    {
+      "name": "root mutations and malformed manifests rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "incomplete publication/commit and ancestor rename/deletion cannot bypass an active transfer",
+      "status": "PASS"
+    },
+    {
+      "name": "all six denied permissions, administration, and other-user sessions are enforced by the API",
+      "status": "PASS"
+    },
+    {
+      "name": "cancellation removes staging, fences old attempts, and preserves unrelated files",
+      "status": "PASS"
+    },
+    {
+      "name": "granting only read enables that action; every access change revokes old sessions",
+      "status": "PASS"
+    },
+    {
+      "name": "granting only download enables that action; every access change revokes old sessions",
+      "status": "PASS"
+    },
+    {
+      "name": "granting only upload enables that action; every access change revokes old sessions",
+      "status": "PASS"
+    },
+    {
+      "name": "granting only create enables that action; every access change revokes old sessions",
+      "status": "PASS"
+    },
+    {
+      "name": "granting only rename enables that action; every access change revokes old sessions",
+      "status": "PASS"
+    },
+    {
+      "name": "granting only delete enables that action; every access change revokes old sessions",
+      "status": "PASS"
+    },
+    {
+      "name": "administrator password reset and disable revoke sessions and reject old credentials",
+      "status": "PASS"
+    },
+    {
+      "name": "audit records persisted account changes and completed uploads; fixtures cleaned",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,134 @@
+name: filebrowser-verify
+services:
+  app:
+    build:
+      context: /root/dev/filebrowser
+      dockerfile: Dockerfile
+      target: runtime
+    environment:
+      FB_LOG_LEVEL: warn
+      FB_UPLOAD_CHUNK_SIZE: "102400"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      timeout: 3s
+      interval: 2s
+      retries: 30
+    networks:
+      default:
+        aliases:
+          - filebrowser.internal
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 3000
+        published: "3320"
+        protocol: tcp
+    volumes:
+      - type: volume
+        source: verify-files
+        target: /files
+        volume: {}
+      - type: volume
+        source: verify-state
+        target: /state
+        volume: {}
+  database:
+    environment:
+      POSTGRES_DB: filebrowser_test
+      POSTGRES_PASSWORD: verification-only-password
+      POSTGRES_USER: postgres
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres -d filebrowser_test
+      timeout: 3s
+      interval: 2s
+      retries: 30
+    image: postgres:18-alpine
+    networks:
+      default: null
+  diskfull:
+    build:
+      context: /root/dev/filebrowser
+      dockerfile: Dockerfile
+      target: runtime
+    environment:
+      FB_LOG_LEVEL: warn
+      FB_UPLOAD_CHUNK_SIZE: "102400"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      timeout: 3s
+      interval: 2s
+      retries: 30
+    networks:
+      default: null
+    tmpfs:
+      - /files:size=32m,uid=1000,gid=1000,mode=0750
+      - /state:size=16m,uid=1000,gid=1000,mode=0700
+  runner:
+    build:
+      context: /root/dev/filebrowser
+      dockerfile: Dockerfile
+      target: verification
+    depends_on:
+      app:
+        condition: service_healthy
+        required: true
+      database:
+        condition: service_healthy
+        required: true
+      diskfull:
+        condition: service_healthy
+        required: true
+    environment:
+      FB_VERIFY_OUTPUT: /evidence
+      FB_VERIFY_URL: http://filebrowser.internal:3000
+      TEST_DATABASE_URL: postgresql://postgres:verification-only-password@database:5432/filebrowser_test
+    init: true
+    networks:
+      default: null
+    shm_size: "1073741824"
+    volumes:
+      - type: bind
+        source: /root/dev/filebrowser/verification
+        target: /evidence
+        bind:
+          create_host_path: true
+      - type: bind
+        source: /root/dev/filebrowser/scripts
+        target: /app/scripts
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: /root/dev/filebrowser/tests
+        target: /app/tests
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: volume
+        source: verify-files
+        target: /verify-files
+        read_only: true
+        volume: {}
+      - type: volume
+        source: verify-state
+        target: /verify-state
+        read_only: true
+        volume: {}
+networks:
+  default:
+    name: filebrowser-verify_default
+volumes:
+  verify-files:
+    name: filebrowser-verify_verify-files
+  verify-state:
+    name: filebrowser-verify_verify-state

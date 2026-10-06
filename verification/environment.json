@@ -1,0 +1,35 @@
+{
+  "testedContainers": [
+    {
+      "container": "filebrowser-verify-app-1",
+      "image": "sha256:26070bda324b7e12f933e80f8802b833e6433becd405cc9a0dc006fc814b6196",
+      "started": "2026-10-06T11:49:35.567777418Z",
+      "uid": "node"
+    },
+    {
+      "container": "filebrowser-verify-diskfull-1",
+      "image": "sha256:63c63e4e11252b0672906a922b687261d9a8bc6df8ed30fe8455c06f66d64113",
+      "started": "2026-10-06T11:37:54.797803221Z",
+      "uid": "node"
+    },
+    {
+      "container": "filebrowser-verify-database-1",
+      "image": "sha256:a1d02e4bd40c94d3bf2bdd3678c137388e76d9efcd23c285e9429d336a834b44",
+      "started": "2026-10-06T11:37:54.78911541Z",
+      "uid": ""
+    }
+  ],
+  "largeTransferAppImage": "sha256:606b817810c3708b282e5c6cadd6ac2644a7171390ced6d65196aeec81a56b19",
+  "verificationRunnerImage": "sha256:4350c7e83f6a9e6fb835e1591c39876c94a69290e70dba96fada2a957fd31dd3",
+  "hostKernel": "6.8.0-142-generic",
+  "docker": "29.1.3",
+  "compose": "2.40.3",
+  "node": "v24.21.0",
+  "npm": "11.19.0",
+  "chromium": "152.0.7977.54",
+  "postgresql": "18.6",
+  "serverSha256": "1c0603b4490a56881a45721864933c9570625e9e5c777bff446dc3a5e3477a67",
+  "finalFrontendBundle": "6cf99c55fab771548eca6f90c55f9ed46c8493db9653938ad608aa38fe05f56d  dist/client/assets/index-CI0haVbY.js",
+  "lockfileSha256": "afa528793adc8cfb1d3818046da47003030ac1696b58ee025101c070a8f62cb2",
+  "starterCommit": "260e5a088d8abeb6dbd2289f05d224cbe9f78ff8"
+}

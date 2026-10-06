@@ -1,0 +1,103 @@
+
+> filebrowser@0.1.0 check
+> npm run lint && npm run build && npm test
+
+
+> filebrowser@0.1.0 lint
+> eslint . --max-warnings 0
+
+
+> filebrowser@0.1.0 build
+> npm run typecheck && npm run build:client && npm run build:server
+
+
+> filebrowser@0.1.0 typecheck
+> npm run db:generate && tsc --noEmit && tsc --noEmit -p tsconfig.node.json
+
+
+> filebrowser@0.1.0 db:generate
+> prisma generate
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (7.10.0) to ./backend/generated/prisma in 62ms
+
+
+> filebrowser@0.1.0 build:client
+> vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 1901 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/index.html                                              0.59 kB │ gzip:  0.36 kB
+dist/client/assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2    8.52 kB
+dist/client/assets/manrope-greek-wght-normal-DL7QRZyv.woff2         9.44 kB
+dist/client/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2     14.50 kB
+dist/client/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2    15.12 kB
+dist/client/assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2    18.22 kB
+dist/client/assets/hash.worker-CSddmu_5.js                         18.61 kB
+dist/client/assets/manrope-latin-wght-normal-DHIcAJRg.woff2        24.83 kB
+dist/client/assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2        36.93 kB
+dist/client/assets/index-Dt0ZM927.css                              40.62 kB │ gzip: 11.70 kB
+dist/client/assets/index-CI0haVbY.js                              290.25 kB │ gzip: 88.37 kB
+
+✓ built in 1.12s
+
+> filebrowser@0.1.0 build:server
+> node scripts/build-server.mjs
+
+
+  dist/server/server.js       54.7kb
+  dist/server/server.js.map  100.6kb
+
+⚡ Done in 18ms
+
+> filebrowser@0.1.0 test
+> node --import tsx --test tests/*.test.js
+
+✔ setup is one-time; credentials, sessions, CSRF, and instance exclusion are enforced (1823.727962ms)
+✔ scopes, permission changes, symlinks, traversal, and last-admin protections (1339.649218ms)
+✔ multi-connection chunks verify, append once, survive lost acknowledgments, and publish without a copy (632.974603ms)
+✔ bad checksums, incomplete parts, stale attempts, and restart tails roll back the whole chunk (648.474349ms)
+✔ runtime chunk overrides are bounded and report a feasible manifest size (3.280902ms)
+✔ an existing upload resumes with its stored chunk size after a runtime configuration change (1052.237071ms)
+✔ SIGKILL after append recovers atomically without duplicate bytes (2545.853439ms)
+✔ SIGKILL after publish recovers atomically without duplicate bytes (2619.310323ms)
+✔ real 100 MiB chunk, interrupted connections, strict ordering, and a 200 GiB manifest (3272.225499ms)
+▶ Prisma works without checked-in models or generated code
+  ✔ validates and generates an empty schema without database credentials (5697.055917ms)
+  ✔ generates typed model queries from a temporary schema (2777.848716ms)
+  ✔ deploys a migration and queries a disposable PostgreSQL database (4117.064933ms)
+✔ Prisma works without checked-in models or generated code (12611.202713ms)
+✔ relocated production bundle serves setup, authenticated files, static assets, and shuts down cleanly (1211.17554ms)
+✔ missing committed bytes fail visibly; canceled attempts release their reservation (1007.752797ms)
+▶ starter tooling works in an isolated temporary project
+  ✔ typechecks frontend, backend, and shared modules (4129.651169ms)
+  ✔ runs aliases, mixed ESM/CommonJS packages, and extensionless dynamic imports in Node (352.588728ms)
+  ✔ discovers TS modules by file URL after additions and deletions (2356.136098ms)
+  ✔ runs the same TypeScript entry with the IDE launch runtime (469.891031ms)
+  ✔ reconnects to the inspector and hits mapped TS breakpoints after nodemon restarts (1569.384419ms)
+  ✔ reports uncaught exceptions with the original TypeScript line (329.326484ms)
+  ✔ builds React, mixed ESM/CommonJS packages, shared imports, and SCSS for production (825.674322ms)
+[vite:react-swc] We recommend switching to `@vitejs/plugin-react` for improved performance as no swc plugins are used. More information at https://vite.dev/rolldown
+11:52:26 AM [vite] (client) page reload shared/value.ts
+  ✔ serves frontend modules and notifies clients of shared changes (1061.837122ms)
+  ✔ nodemon restarts backend changes, ignores frontend output, and recovers after errors (3372.893217ms)
+✔ starter tooling works in an isolated temporary project (14492.475938ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15660.505104
+npm notice
+npm notice New major version of npm available! 11.19.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
