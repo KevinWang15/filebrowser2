@@ -8,7 +8,7 @@ Connect without exposing another network listener:
 ssh -p 7822 -L 7288:127.0.0.1:7288 root@icdesign.com
 ```
 
-Open **http://127.0.0.1:7288** on your computer and complete setup with your chosen administrator password. No administrator account or default password was provisioned.
+Open **http://127.0.0.1:7288** on your computer. Deployment initially left setup ready for your chosen administrator password; a later final check found it completed with one administrator. Sign in with the account created during setup. The deployment tools provisioned no production account or default password.
 
 ## Service operations
 

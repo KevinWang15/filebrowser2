@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "node": "v24.21.0",
+  "uid": 0,
+  "checks": [
+    {
+      "name": "private Node 24 serves production assets and an authenticated setup wizard on the legacy host",
+      "status": "PASS"
+    },
+    {
+      "name": "root administrator can browse the host filesystem while private account state stays inaccessible",
+      "status": "PASS"
+    },
+    {
+      "name": "101 MiB upload on the root disk survives SIGKILL, truncates an uncommitted tail, preserves its inode, and supports range/rename/delete",
+      "status": "PASS"
+    },
+    {
+      "name": "101 MiB upload on the separate disk survives SIGKILL, truncates an uncommitted tail, preserves its inode, and supports range/rename/delete",
+      "status": "PASS"
+    },
+    {
+      "name": "cancellation removes the secondary-disk payload and central registry without publishing a partial file",
+      "status": "PASS"
+    }
+  ],
+  "uploads": [
+    {
+      "directory": "/root/filebrowser2/deployment-smoke-53db768d291c",
+      "device": 2049,
+      "inode": 60817411,
+      "bytes": 105906193,
+      "chunkSize": 104857600,
+      "sha256": "5375c2251a16c545f6afde77533bff31a4b58d5869215eb2cada62162629deae",
+      "stagingOnTargetFilesystem": true,
+      "pidBeforeKill": 47316,
+      "pidAfterRestart": 47331,
+      "status": "PASS"
+    },
+    {
+      "directory": "/mnt/sda3/filebrowser2-smoke-53db768d291c",
+      "device": 2051,
+      "inode": 2106824,
+      "bytes": 105906193,
+      "chunkSize": 104857600,
+      "sha256": "5375c2251a16c545f6afde77533bff31a4b58d5869215eb2cada62162629deae",
+      "stagingOnTargetFilesystem": true,
+      "pidBeforeKill": 47331,
+      "pidAfterRestart": 47352,
+      "status": "PASS"
+    }
+  ],
+  "needsSetupBeforeTest": true,
+  "disposableState": "/root/filebrowser2/.filebrowser-smoke-53db768d291c",
+  "productionStateUntouched": true
+}

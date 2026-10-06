@@ -1,0 +1,165 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.48kB done
+#1 DONE 0.0s
+
+#2 [runner internal] load build definition from Dockerfile
+#2 transferring dockerfile: 889B done
+#2 DONE 0.0s
+
+#3 [runner internal] load metadata for ghcr.io/puppeteer/puppeteer:25.9.0
+#3 DONE 0.1s
+
+#4 [app internal] load metadata for docker.io/library/node:24-bookworm-slim
+#4 DONE 0.1s
+
+#5 [runner internal] load .dockerignore
+#5 transferring context: 157B done
+#5 DONE 0.0s
+
+#6 [runner internal] load build context
+#6 DONE 0.0s
+
+#7 [runner verification 1/5] FROM ghcr.io/puppeteer/puppeteer:25.9.0@sha256:5c341215d78353c3416b6c92aae9fac66e8f11c146c3753234980443d6792f8f
+#7 resolve ghcr.io/puppeteer/puppeteer:25.9.0@sha256:5c341215d78353c3416b6c92aae9fac66e8f11c146c3753234980443d6792f8f 0.0s done
+#7 DONE 0.1s
+
+#8 [runner build 1/6] FROM docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+#8 resolve docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 0.1s done
+#8 resolve docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 0.1s done
+#8 DONE 0.1s
+
+#6 [app internal] load build context
+#6 transferring context: 85.17kB 0.0s done
+#6 DONE 0.0s
+
+#9 [app build 2/6] WORKDIR /app
+#9 CACHED
+
+#10 [app build 3/6] COPY package.json package-lock.json ./
+#10 CACHED
+
+#11 [runner build 4/6] RUN npm ci
+#11 CACHED
+
+#12 [runner build 5/6] COPY . .
+#12 DONE 0.3s
+
+#13 [app build 6/6] RUN npm run build
+#13 0.468 
+#13 0.468 > filebrowser@0.1.0 build
+#13 0.468 > npm run typecheck && npm run build:client && npm run build:server
+#13 0.468 
+#13 0.634 
+#13 0.634 > filebrowser@0.1.0 typecheck
+#13 0.634 > npm run db:generate && tsc --noEmit && tsc --noEmit -p tsconfig.node.json
+#13 0.634 
+#13 0.801 
+#13 0.801 > filebrowser@0.1.0 db:generate
+#13 0.801 > prisma generate
+#13 0.801 
+#13 2.585 Loaded Prisma config from prisma.config.ts.
+#13 2.585 
+#13 2.629 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#13 2.629 Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#13 2.633 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#13 2.633 Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#13 2.918 Prisma schema loaded from prisma/schema.prisma.
+#13 2.981 
+#13 2.981 ✔ Generated Prisma Client (7.10.0) to ./backend/generated/prisma in 38ms
+#13 2.981 
+#13 12.26 
+#13 12.26 > filebrowser@0.1.0 build:client
+#13 12.26 > vite build
+#13 12.26 
+#13 12.66 vite v8.3.0 building client environment for production...
+#13 12.67 transforming...
+#13 13.99 ✓ 6293 modules transformed.
+#13 14.23 rendering chunks...
+#13 14.34 computing gzip size...
+#13 14.35 dist/client/index.html                                                     1.73 kB │ gzip:   0.88 kB
+#13 14.35 dist/client/assets/jetbrains-mono-vietnamese-wght-normal-Bt-aOZkq.woff2    7.50 kB
+#13 14.35 dist/client/assets/jetbrains-mono-greek-wght-normal-Bw9x6K1M.woff2         9.00 kB
+#13 14.35 dist/client/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2            10.25 kB
+#13 14.35 dist/client/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2             11.23 kB
+#13 14.35 dist/client/assets/jetbrains-mono-cyrillic-wght-normal-D73BlboJ.woff2     12.10 kB
+#13 14.35 dist/client/assets/jetbrains-mono-latin-ext-wght-normal-DBQx-q_a.woff2    15.19 kB
+#13 14.35 dist/client/assets/hash.worker-CSddmu_5.js                                18.61 kB
+#13 14.35 dist/client/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2              18.74 kB
+#13 14.35 dist/client/assets/inter-greek-wght-normal-CkhJZR-_.woff2                 18.99 kB
+#13 14.35 dist/client/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2          25.96 kB
+#13 14.35 dist/client/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2        40.40 kB
+#13 14.35 dist/client/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                 48.25 kB
+#13 14.35 dist/client/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2             85.06 kB
+#13 14.35 dist/client/assets/index-5D8NFCCs.css                                     61.61 kB │ gzip:  14.61 kB
+#13 14.35 dist/client/assets/index-CgiYgxKH.js                                     359.79 kB │ gzip: 105.37 kB
+#13 14.35 
+#13 14.36 ✓ built in 1.70s
+#13 14.62 
+#13 14.62 > filebrowser@0.1.0 build:server
+#13 14.62 > node scripts/build-server.mjs
+#13 14.62 
+#13 14.72 
+#13 14.72   dist/server/server.js       64.1kb
+#13 14.72   dist/server/server.js.map  118.0kb
+#13 14.72 
+#13 14.72 ⚡ Done in 20ms
+#13 DONE 14.9s
+
+#14 [app runtime 4/5] RUN npm ci --omit=dev && mkdir /files /state && chown node:node /files /state
+#14 CACHED
+
+#15 [runner verification 2/5] COPY --from=build /usr/local/ /usr/local/
+#15 CACHED
+
+#16 [runner verification 3/5] WORKDIR /app
+#16 CACHED
+
+#17 [runner verification 4/5] COPY --from=build /app/ /app/
+#17 ...
+
+#18 [app runtime 5/5] COPY --from=build /app/dist ./dist
+#18 DONE 0.2s
+
+#19 [app] exporting to image
+#19 exporting layers
+#19 exporting layers 0.3s done
+#19 exporting manifest sha256:07bc355888b687135b0b2c94a6d3e9c2aad8df27bd250fbb9118f93c54c581b2 0.0s done
+#19 exporting config sha256:643cac7e5e7d62109a514bbb6a3ea95c24928789bcf76765b8b966cc6de3de8c 0.0s done
+#19 exporting attestation manifest sha256:454d4703ecdc147ac630837929d26b7dc896d725e2bde3a685e3914717827ab9
+#19 exporting attestation manifest sha256:454d4703ecdc147ac630837929d26b7dc896d725e2bde3a685e3914717827ab9 0.1s done
+#19 exporting manifest list sha256:cded3a48d852c2587f0430739cf5f8e06b1865283fe534717fd9daecab72096c
+#19 exporting manifest list sha256:cded3a48d852c2587f0430739cf5f8e06b1865283fe534717fd9daecab72096c 0.1s done
+#19 naming to docker.io/library/filebrowser-deploy-verify-app:latest done
+#19 unpacking to docker.io/library/filebrowser-deploy-verify-app:latest 0.1s done
+#19 DONE 0.8s
+
+#17 [runner verification 4/5] COPY --from=build /app/ /app/
+#17 ...
+
+#20 [app] resolving provenance for metadata file
+#20 DONE 0.0s
+
+#17 [runner verification 4/5] COPY --from=build /app/ /app/
+#17 DONE 12.1s
+
+#21 [runner verification 5/5] RUN ln -s /home/pptruser/.cache/puppeteer/chrome/*/chrome-linux64/chrome /usr/local/bin/filebrowser-chromium
+#21 DONE 0.8s
+
+#22 [runner] exporting to image
+#22 exporting layers
+#22 exporting layers 55.9s done
+#22 exporting manifest sha256:4f40fa5fff601bd131640df3b8fd44f42211f87a20c805b4b6b7428fb30cef1b 0.0s done
+#22 exporting config sha256:5e975cf360ed9705d1da809b034fe714930c2a18b0f03cac72fc9a514a19b8fa 0.1s done
+#22 exporting attestation manifest sha256:9e4f056419f9bcbdbcb196419483df35ccabd3b055f9cb7b9f61079617bf546e
+#22 exporting attestation manifest sha256:9e4f056419f9bcbdbcb196419483df35ccabd3b055f9cb7b9f61079617bf546e 0.1s done
+#22 exporting manifest list sha256:ab00ea3ded1b614cb7cf22d32f88a92f0ba3c737cb7ac88ac83b6818e6498886 0.0s done
+#22 naming to docker.io/library/filebrowser-deploy-verify-runner:latest
+#22 naming to docker.io/library/filebrowser-deploy-verify-runner:latest done
+#22 unpacking to docker.io/library/filebrowser-deploy-verify-runner:latest
+#22 unpacking to docker.io/library/filebrowser-deploy-verify-runner:latest 18.6s done
+#22 DONE 74.8s
+
+#23 [runner] resolving provenance for metadata file
+#23 DONE 0.0s
+ filebrowser-deploy-verify-app  Built
+ filebrowser-deploy-verify-runner  Built

@@ -1,0 +1,5 @@
+PASS loopback-only listener, root process, private state permissions, default 100 MiB chunks and zero production accounts
+PASS production frontend assets and first-run setup are served
+PASS Upstart automatically respawns after SIGKILL and preserves first-run setup
+PASS explicit service restart succeeds without creating an administrator account
+PASS existing system Node and PM2 applications remain running, and disposable upload fixtures are removed

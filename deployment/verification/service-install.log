@@ -1,0 +1,27 @@
+description "Filebrowser2 root filesystem workspace"
+
+start on runlevel [2345]
+stop on runlevel [016]
+
+respawn
+respawn limit 10 60
+kill signal TERM
+kill timeout 20
+
+setuid root
+setgid root
+umask 077
+console log
+chdir /root/filebrowser2/app
+
+env NODE_ENV=production
+env HOST=127.0.0.1
+env PORT=7288
+env FB_STORAGE_ROOT=/
+env FB_STATE_DIR=/root/filebrowser2/.filebrowser-state
+env FB_LOG_LEVEL=warn
+env FB_SECURE_COOKIES=false
+
+exec /root/filebrowser2/runtime/bin/node --enable-source-maps /root/filebrowser2/app/dist/server/server.js
+File /etc/init/filebrowser2.conf: syntax ok
+filebrowser2 start/running, process 47666

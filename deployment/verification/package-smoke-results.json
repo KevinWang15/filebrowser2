@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "isolatedPaths": true,
+  "needsSetup": true,
+  "chunkSize": 104857600
+}

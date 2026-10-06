@@ -1,0 +1,2 @@
+filebrowser2 start/running, process 47991
+{"status":"ok","commit":"local"}{"needsSetup":false,"siteName":"Filebrowser","user":null,"upload":{"chunkSize":104857600,"maxFileSize":1099511627776,"maxConnections":4}}{"sourceCommit":"0c27120ce800dee02780316cc1dfdf07306fc4cd","sourceChanges":[],"serverSha256":"d66a959c4ced001c6364739db35c84a3b4202fb16671d71764cdcaf2a722bb92"}
