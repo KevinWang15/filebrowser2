@@ -1,0 +1,109 @@
+import { useState, type FormEvent } from 'react'
+import { IconArrowLeft, IconArrowRight, IconCheck, IconEye, IconEyeOff, IconLock, IconServer, IconShieldCheck } from '@tabler/icons-react'
+import { api, errorMessage } from '../api'
+import { Logo, Spinner } from '../components/ui'
+
+const STEPS = ['Workspace', 'Administrator', 'Review'] as const
+const STRENGTH = [
+  { at: 1, label: 'Too short' }, { at: 8, label: 'Too short' }, { at: 12, label: 'Good' }, { at: 18, label: 'Strong' },
+]
+
+function PasswordInput({ id, value, onChange, setup, autoComplete, placeholder }: {
+  id: string; value: string; onChange: (value: string) => void; setup: boolean; autoComplete: string; placeholder: string
+}) {
+  const [visible, setVisible] = useState(false)
+  return <div className="input-group">
+    <input id={id} className="input" type={visible ? 'text' : 'password'} autoComplete={autoComplete} value={value} placeholder={placeholder}
+      onChange={event => onChange(event.target.value)} required minLength={setup ? 12 : 1} maxLength={128} />
+    <button type="button" className="icon-btn" aria-label={visible ? 'Hide password' : 'Show password'} onClick={() => setVisible(!visible)}>
+      {visible ? <IconEyeOff size={15} /> : <IconEye size={15} />}
+    </button>
+  </div>
+}
+
+export function AuthScreen({ setup, siteName, onDone }: { setup: boolean; siteName: string; onDone: () => Promise<void> }) {
+  const [step, setStep] = useState(0)
+  const [name, setName] = useState(siteName)
+  const [username, setUsername] = useState(setup ? 'admin' : '')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const strength = STRENGTH.filter(level => password.length >= level.at).length
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); setError('')
+    if (setup && step === 0) { setStep(1); return }
+    if (setup && step === 1) {
+      if (password !== confirm) { setError('Your passwords do not match.'); return }
+      setStep(2); return
+    }
+    setBusy(true)
+    try {
+      await api(setup ? '/setup' : '/auth/login', { method: 'POST', body: setup ? { username, password, siteName: name } : { username, password } })
+      await onDone()
+    } catch (error) { setError(errorMessage(error)) } finally { setBusy(false) }
+  }
+  const heading = setup ? ['Make yourself at home.', 'Create the administrator.', 'Review and create.'][step] : 'Good to see you again.'
+  const description = setup
+    ? ['Name this workspace. You can change it later in Settings.', 'This account manages files, people, and permissions.', 'Confirm the details below to finish setup.'][step]
+    : <>Sign in to <strong>{siteName}</strong></>
+
+  return <div className="auth">
+    <div className="auth-grid" aria-hidden="true" />
+    <div className="auth-panel">
+      <div className="auth-brand"><Logo size={28} /><span>{setup ? 'Filebrowser' : siteName}</span></div>
+      <form className="auth-card" onSubmit={event => void submit(event)} noValidate={false}>
+        {setup && <ol className="stepper" aria-label="Setup progress">
+          {STEPS.map((label, index) => <li key={label} className={index < step ? 'is-done' : index === step ? 'is-current' : ''} aria-current={index === step ? 'step' : undefined}>
+            <span className="stepper-dot">{index < step ? <IconCheck size={11} stroke={3} /> : index + 1}</span>{label}
+          </li>)}
+        </ol>}
+        <div className="auth-heading"><h1>{heading}</h1><p>{description}</p></div>
+
+        {setup && step === 0 && <div className="field">
+          <label htmlFor="auth-site">Workspace name</label>
+          <input id="auth-site" className="input" value={name} onChange={event => setName(event.target.value)} required maxLength={60} placeholder="My workspace" />
+          <span className="field-hint"><IconServer size={13} /> Files are stored on this server's local filesystem.</span>
+        </div>}
+
+        {setup && step === 2 && <dl className="review-list">
+          <div><dt>Workspace</dt><dd>{name}</dd></div>
+          <div><dt>Administrator</dt><dd>{username}</dd></div>
+          <div><dt>Storage</dt><dd>Local filesystem</dd></div>
+          <div><dt>Uploads</dt><dd className="text-success"><IconShieldCheck size={14} /> Resumable, SHA-256 verified</dd></div>
+        </dl>}
+
+        {(!setup || step === 1) && <>
+          <div className="field">
+            <label htmlFor="auth-username">Username</label>
+            <input id="auth-username" className="input" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} required
+              minLength={setup ? 2 : 1} maxLength={40} pattern={setup ? '[a-zA-Z0-9_.-]+' : undefined} placeholder="username" autoFocus={!setup} spellCheck={false} autoCapitalize="none" />
+          </div>
+          <div className="field">
+            <label htmlFor="auth-password">Password</label>
+            <PasswordInput id="auth-password" value={password} onChange={setPassword} setup={setup} autoComplete={setup ? 'new-password' : 'current-password'}
+              placeholder={setup ? 'At least 12 characters' : '••••••••••••'} />
+            {setup && <div className="strength" data-level={strength}>
+              {STRENGTH.map((_, index) => <span key={index} className={index < strength ? 'is-on' : ''} />)}
+              <small>{password ? STRENGTH[Math.max(0, strength - 1)].label : 'Use 12 or more characters'}</small>
+            </div>}
+          </div>
+          {setup && <div className="field">
+            <label htmlFor="auth-confirm">Confirm password</label>
+            <input id="auth-confirm" className="input" autoComplete="new-password" type="password" value={confirm} onChange={event => setConfirm(event.target.value)}
+              required minLength={12} maxLength={128} placeholder="Repeat password" />
+          </div>}
+        </>}
+
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <div className="auth-actions">
+          {setup && step > 0 && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => { setStep(step - 1); setError('') }}><IconArrowLeft size={15} />Back</button>}
+          <button className="btn btn-primary btn-lg" disabled={busy}>
+            {busy ? <Spinner /> : <>{setup ? step === 2 ? 'Create workspace' : 'Continue' : 'Sign in'}<IconArrowRight size={15} /></>}
+          </button>
+        </div>
+      </form>
+      <p className="auth-foot"><IconLock size={12} /> {setup ? 'No default passwords. Sessions are revocable.' : 'Private, self-hosted workspace'}</p>
+    </div>
+  </div>
+}

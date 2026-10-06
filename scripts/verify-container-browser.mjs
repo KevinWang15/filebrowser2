@@ -29,7 +29,7 @@ async function login(username='admin',password='container-verification-password'
   await target.getByLabel('Username',{exact:true}).fill(username)
   await target.getByLabel('Password',{exact:true}).fill(password)
   await target.getByRole('button',{name:'Sign in',exact:true}).click()
-  await target.getByRole('heading',{name:'All files.'}).waitFor()
+  await target.getByRole('heading',{name:'My files'}).waitFor()
 }
 async function waitText(locator,text,timeout=60000) {
   await locator.getByText(text,{exact:true}).waitFor({timeout})
@@ -52,7 +52,7 @@ try {
     await page.getByRole('button',{name:'Continue',exact:true}).click()
     await shot('03-setup-review')
     await page.getByRole('button',{name:'Create workspace',exact:true}).click()
-    await page.getByRole('heading',{name:'All files.'}).waitFor()
+    await page.getByRole('heading',{name:'My files'}).waitFor()
     await shot('04-first-run-files')
     check('first-run wizard creates the administrator through the real container browser')
     const second=await request('/setup',{username:'other',password:'container-verification-password',siteName:'Blocked'})
@@ -73,7 +73,6 @@ try {
     await waitText(page.locator('.transfer-row').filter({hasText:notesName}),'Complete')
     await page.getByRole('button',{name:'My files',exact:true}).first().click()
     await page.getByRole('button',{name:notesName,exact:true}).click()
-    await page.getByRole('button',{name:'Preview',exact:true}).click()
     assert.match(await page.locator('.text-preview').textContent(),/Container verified/)
     await shot('06-text-preview')
     const downloaded=page.waitForEvent('download')
