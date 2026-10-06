@@ -6,7 +6,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default defineConfig([
-  globalIgnores(['dist', 'backend/generated', 'verification/**']),
+  globalIgnores(['dist', 'backend/generated', 'verification/**', 'deployment/**', 'release/**']),
   js.configs.recommended,
   tseslint.configs.recommended,
   {
@@ -15,12 +15,8 @@ export default defineConfig([
     linterOptions: { reportUnusedDisableDirectives: 'error' },
   },
   {
-    files: ['*.{js,ts}', 'backend/**/*.ts', 'tests/**/*.js', 'scripts/**/*.mjs', 'quickdeploy/**/*.{mjs,cjs}'],
+    files: ['*.{js,ts}', 'backend/**/*.ts', 'tests/**/*.js', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
-  },
-  {
-    files: ['quickdeploy/server/*.cjs'],
-    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
     files: ['frontend/**/*.{ts,tsx}'],

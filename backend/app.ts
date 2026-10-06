@@ -87,7 +87,7 @@ export async function createApp(options: AppOptions = {}) {
     return reply.code(status).send({ message: status >= 500 ? 'The operation failed. You can safely retry.' : error instanceof Error ? error.message : 'Request failed', code: 'REQUEST_FAILED' })
   })
 
-  app.get('/health', async () => ({ status: 'ok', commit: process.env.QUICKDEPLOY_COMMIT ?? 'local' }))
+  app.get('/health', async () => ({ status: 'ok', commit: process.env.FB_BUILD_COMMIT ?? 'local' }))
   app.get('/api/bootstrap', async request => ({ needsSetup: store.users().length === 0, siteName: store.setting('siteName', 'Filebrowser'), user: request.currentUser,
     upload: limits }))
   app.post('/api/setup', async (request, reply) => {

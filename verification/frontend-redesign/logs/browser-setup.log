@@ -1,6 +1,0 @@
- Container filebrowser-redesign-verify-database-1  Running
- Container filebrowser-redesign-verify-app-1  Running
- Container filebrowser-redesign-verify-diskfull-1  Running
-PASS first-run wizard creates the administrator through the real container browser
-PASS setup locks after first successful completion
-PASS no unhandled browser JavaScript errors

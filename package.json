@@ -1,5 +1,5 @@
 {
-  "name": "filebrowser",
+  "name": "filebrowser2",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "dev:server": "nodemon backend/server.ts",
     "typecheck": "npm run db:generate && tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "build": "npm run typecheck && npm run build:client && npm run build:server",
-    "build:client": "vite build",
+    "build:client": "vite build && node scripts/copy-licenses.mjs",
     "build:server": "node scripts/build-server.mjs",
     "start": "node --enable-source-maps dist/server/server.js",
     "lint": "eslint . --max-warnings 0",
@@ -25,7 +25,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "test:e2e": "npm run build && playwright test"
+    "test:e2e": "npm run build && playwright test",
+    "package:runtime": "node scripts/package-release.mjs",
+    "package:source": "node scripts/package-source.mjs"
   },
   "nodemonConfig": {
     "exec": "node --import tsx",
@@ -97,5 +99,11 @@
     "nodemon": {
       "chokidar": "^4.0.3"
     }
+  },
+  "description": "A self-hosted file browser with scoped users and durable resumable uploads.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KevinWang15/filebrowser2.git"
   }
 }

@@ -1,3 +1,0 @@
-PASS first-run wizard creates the administrator through the real container browser
-PASS setup locks after first successful completion
-PASS no unhandled browser JavaScript errors

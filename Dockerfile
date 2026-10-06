@@ -20,6 +20,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && mkdir /files /state && chown node:node /files /state
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/LICENSE /app/NOTICE.md /app/THIRD_PARTY_NOTICES.md ./
+COPY --from=build /app/licenses ./licenses
 USER node
 EXPOSE 3000
 CMD ["node", "--enable-source-maps", "dist/server/server.js"]

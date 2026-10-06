@@ -32,6 +32,15 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Prepare mounted-filesystem fixture
+        run: |
+          mkdir -p "${RUNNER_TEMP}/filebrowser-files/external"
+          sudo mount -t tmpfs -o size=64m,mode=0777 tmpfs "${RUNNER_TEMP}/filebrowser-files/external"
       - run: npm run check
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/starter_test
+          FB_TEST_STORAGE_ROOT: ${{ runner.temp }}/filebrowser-files
+          FB_TEST_MOUNT_PATH: ${{ runner.temp }}/filebrowser-files/external
+      - name: Remove mounted fixture
+        if: always()
+        run: sudo umount "${RUNNER_TEMP}/filebrowser-files/external" || true

@@ -1,0 +1,24 @@
+[Unit]
+Description=Filebrowser2
+After=network.target
+
+[Service]
+Type=simple
+User=filebrowser
+Group=filebrowser
+WorkingDirectory=/opt/filebrowser
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+Environment=FB_STORAGE_ROOT=/srv/filebrowser/files
+Environment=FB_STATE_DIR=/var/lib/filebrowser
+Environment=FB_SECURE_COOKIES=false
+EnvironmentFile=-/etc/filebrowser.env
+ExecStart=/usr/bin/node --enable-source-maps /opt/filebrowser/app/dist/server/server.js
+Restart=on-failure
+RestartSec=3
+UMask=0077
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

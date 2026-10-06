@@ -30,9 +30,11 @@ dist-ssr
 !.env.example
 /backend/generated/
 /.filebrowser/
+/.filebrowser-*
 /data/
 /test-results/
 /playwright-report/
-/verification/logs/
-/verification/*.tar.gz
-/verification/transfer-response*.json
+# Generated reports, local operations, and release artifacts
+/verification/
+/deployment/
+/release/

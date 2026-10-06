@@ -1,5 +1,0 @@
-PASS private Node 24 serves production assets and an authenticated setup wizard on the legacy host
-PASS root administrator can browse the host filesystem while private account state stays inaccessible
-PASS 101 MiB upload on the root disk survives SIGKILL, truncates an uncommitted tail, preserves its inode, and supports range/rename/delete
-PASS 101 MiB upload on the separate disk survives SIGKILL, truncates an uncommitted tail, preserves its inode, and supports range/rename/delete
-PASS cancellation removes the secondary-disk payload and central registry without publishing a partial file

@@ -9,8 +9,8 @@ import { createApp } from '../backend/app.ts'
 import { CHUNK_SIZE, MAX_FILE_SIZE } from '../shared/types.ts'
 
 test('whole-filesystem storage requires private state in the reserved namespace',()=>{
-  assert.deepEqual(storageLocations('/','/root/filebrowser2/.filebrowser-state'),{storageRoot:'/',stateDirectory:'/root/filebrowser2/.filebrowser-state'})
-  assert.throws(()=>storageLocations('/','/root/filebrowser2/state'),/FB_STATE_DIR/)
+  assert.deepEqual(storageLocations('/','/var/lib/filebrowser/.filebrowser-state'),{storageRoot:'/',stateDirectory:'/var/lib/filebrowser/.filebrowser-state'})
+  assert.throws(()=>storageLocations('/','/var/lib/filebrowser/state'),/FB_STATE_DIR/)
   assert.throws(()=>storageLocations('/srv/files','/srv/files/state'),/FB_STATE_DIR/)
   assert.throws(()=>storageLocations('/srv/files','/srv/files'),/FB_STATE_DIR/)
   assert.equal(storageLocations('/srv/files','/srv/files-other/state').stateDirectory,'/srv/files-other/state')

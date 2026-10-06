@@ -1,10 +1,20 @@
-# Filebrowser
+# Filebrowser2
 
-A private file workspace with first-run setup, scoped accounts, and resumable uploads. Built from [KevinWang15/ts-fullstack-starter](https://github.com/KevinWang15/ts-fullstack-starter), commit `260e5a088d8abeb6dbd2289f05d224cbe9f78ff8`: React 19, Vite, SCSS, Fastify, shared TypeScript types, and esbuild production packaging. Fonts are bundled locally.
+A self-hosted file browser with scoped users and durable resumable uploads. Run it on your own storage, create the first administrator through the setup wizard, and give each user the access they need.
 
-## Run locally
+![File workspace in light mode](docs/images/workspace-light.png)
 
-Requires Node.js 24+ and npm 11+.
+## Quick start
+
+With Docker Compose:
+
+```sh
+docker compose up --build -d
+```
+
+Open **http://127.0.0.1:8080** and choose your administrator username and password. There is no default password. Files and private application state persist in separate Docker volumes.
+
+For local development, use Node.js 24+ and npm 11+:
 
 ```sh
 npm ci
@@ -12,113 +22,62 @@ cp .env.example .env
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. The setup wizard creates your administrator account; there is no preset password. The backend listens on port 3000. Your files go in `./data` and private account/session/upload records go in `./.filebrowser`. Both are ignored by Git.
+Open **http://127.0.0.1:5173**. Local defaults store files in `./data` and account/session/upload metadata in `./.filebrowser`; both are ignored by Git. The backend listens on port 3000. To build and run a native production instance, use `npm run build` and `npm start` with your chosen storage and state paths.
 
-## What is implemented
+See [deployment and configuration](docs/deployment.md) for native services, container bindings, HTTPS proxies, backups, and optional whole-host administration.
 
-- One-time setup wizard: workspace name, administrator username, and password.
-- Revocable server-side sessions, scrypt password hashes, login throttling, CSRF request verification, session invalidation on access/password changes, and protection against removing the last enabled administrator.
-- File and folder browsing, list/grid views, search and sorting, folder creation, rename, empty-folder/file deletion, text previews, and downloads with HTTP byte ranges.
-- Light/dark/system themes, compact/comfortable density, a file details inspector and context menus, and a Ctrl/⌘ K command palette. Folder URLs survive reload and browser history navigation; press `?` for keyboard shortcuts.
-- Administrator console: create and edit accounts, reset passwords, disable accounts, select a home folder, and individually assign browse/preview, download, upload, create-folder, rename, and delete permissions. Members see their assigned folder as `/`.
-- Activity history and workspace/account settings.
-- Resumable uploads up to **1 TiB per file** with sequential **100 MiB** chunks, SHA-256 manifests, and 1, 2, or 4 parallel connections **inside the current chunk**.
-- Worker-based file hashing using 4 MiB read buffers; upload progress, pause/resume, exponential backoff, and resumption after browser/server restarts.
-- A storage contract separating ordinary file operations from durable sequential-upload capabilities. The local implementation is shipped; remote adapters are future work.
+## Features
 
-Symlinks, traversal segments, and reserved `.filebrowser-*` paths are inaccessible through the API. Uploaded file content is delivered as an attachment, or as sandboxed plain text for supported previews. File operations enforce permissions on the server.
+- First-run setup, scrypt password hashes, revocable sessions, login throttling, and server-side permission enforcement.
+- Administrator console for creating users, assigning home folders, changing permissions, resetting passwords, and disabling accounts.
+- Files and folders, list/grid views, search, sorting, rename, empty-folder/file deletion, text/image previews, and HTTP byte-range downloads.
+- Light, dark and system themes; compact and comfortable layouts; a file inspector, context menus, keyboard shortcuts, and a command palette.
+- Resumable uploads up to 1 TiB per file, with SHA-256 manifests and sequential 100 MiB chunks. Each current chunk can use one, two, or four connections.
+- Local filesystem storage with an explicit adapter contract. Staging supports destinations on different mounted filesystems; remote adapters are future work.
 
-## How resumption works
+Symlinks, traversal segments, special files and reserved `.filebrowser-*` paths are inaccessible through the file API. Users see their assigned folder as `/`. Browse/preview, download, upload, create-folder, rename and delete permissions are independent.
 
-Before the first upload, a browser worker scans the file and calculates the SHA-256 hash of every chunk. Only the hash list is sent to initialize the session. The full file is never loaded into browser memory. Pausing in the same browser retains its computed manifest; after reloading, select the original file to verify its manifest again and resume from the last committed chunk.
+## Durable uploads
 
-The server stages one chunk, verifies its checksum, appends it to the growing file, calls `fsync`, and records the new offset in a SQLite transaction with `synchronous=FULL`. It acknowledges only after this commit. A lost response is handled by asking for the current server offset; duplicate commits return the existing result. Startup truncates any bytes beyond the recorded offset and discards incomplete chunks.
+Before upload, a browser worker scans the source through 4 MiB read buffers and hashes each chunk. It sends the immutable checksum manifest to initialize a session. Chunks commit in order; connections can run concurrently only within the current chunk.
 
-An unfinished file appears beside its destination as `filename.uploading`, labeled “Uploading” in the browser. Only committed bytes count toward its displayed size. It cannot be downloaded, previewed, renamed, or deleted through the file API; use Transfers to resume or cancel it. Its final name and pending name are reserved until completion or cancellation.
+The server streams parts into one temporary chunk, verifies its SHA-256, appends it to the growing file, syncs the file, and commits the new offset in a FULL-synchronous SQLite transaction. It acknowledges afterward. A failed chunk is discarded and retried as a whole. Duplicate commits and lost responses are reconciled against the server's durable offset.
 
-Completion moves `filename.uploading` to `filename` on the same filesystem. The local backend uses an exclusive hard link, directory sync, and unlink to move the same inode without overwriting an existing destination. A private hard-link anchor shares those blocks and supports crash recovery. There is **no full-file concatenation or copy**. A durable publishing state completes an interrupted move; a durable canceling state retries interrupted cleanup. This move atomically exposes complete bytes but briefly allows both names, so the backend does not advertise general atomic-move support. Names too long to append the suffix receive a shortened, deterministic hashed pending name within the filesystem’s 255-byte limit. Completed files whose own names end in `.uploading` remain ordinary files.
+An unfinished upload appears as `filename.uploading`. Recovery discards incomplete chunks and truncates uncommitted tails. Completion exposes the final name using the same inode, with an exclusive hard link, directory sync and unlink. There is no full-file concatenation or copy, and no second full-file allocation. A private anchor supports recovery; payload and chunk staging share the destination filesystem.
 
-Read [the upload protocol and failure analysis](docs/upload-protocol.md) for exact invariants, endpoints, tradeoffs, and operating assumptions.
+Pausing retains the source and manifest while the page is open. After a browser restart, select the original file to verify its manifest again and resume from the committed offset. The server needs the growing file plus at most one temporary chunk per active upload. These guarantees depend on filesystem locking, `fsync` and storage hardware honoring writes.
 
-## Production
+Read [the upload protocol](docs/upload-protocol.md) for state transitions, disk/memory bounds, endpoints, tradeoffs and failure cases. Tests cover real 100 MiB chunks, interrupted transfers, corruption, process crashes, 1 GiB stress uploads and 200 GiB manifests. A full 200 GB payload and physical power-loss testing have not been performed.
 
-```sh
-npm ci
-npm run build
-FB_STORAGE_ROOT=/srv/filebrowser/files \
-FB_STATE_DIR=/srv/filebrowser/state \
-FB_PUBLIC_ORIGIN=https://files.example.com \
-FB_SECURE_COOKIES=true \
-HOST=127.0.0.1 PORT=3000 npm start
-```
+![Transfers in dark mode](docs/images/transfers-dark.png)
 
-The bundled backend serves the built frontend. Terminate HTTPS at your reverse proxy and forward the configured public origin. The local backend requires a filesystem with working file/directory `fsync`, same-volume hard links, and SQLite locking. Linux with a local filesystem is the supported target. One process owns the storage root and state directory; OS-managed locks reject a second writer and automatically release after a crash.
+The screenshots show disposable demonstration fixtures.
 
-For whole-host administration, set `FB_STORAGE_ROOT=/` and put state inside a reserved `.filebrowser-*` directory, such as `/root/filebrowser2/.filebrowser-state`. The API hides and rejects that namespace. Uploads on other mounted filesystems place their payload and temporary chunk on the destination filesystem, keeping publication on one device and checking that device's free space. See the [deployment instructions](deployment/README.md) and [target verification report](deployment/REPORT.md) for the root service installed on `icdesign.com`.
-
-For nginx, the upload location needs streaming request bodies and generous transfer timeouts:
-
-```nginx
-location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    client_max_body_size 101m;
-    proxy_request_buffering off;
-    proxy_read_timeout 3600s;
-    proxy_send_timeout 3600s;
-    client_body_timeout 3600s;
-}
-```
-
-`proxy_request_buffering off` is necessary for the stated storage bound: a buffering proxy can independently spool the entire incoming request. Configure the correct `FB_PUBLIC_ORIGIN` because the backend connection uses HTTP while the public origin uses HTTPS. HTTP development uses `FB_SECURE_COOKIES=false`.
-
-Run as an unprivileged OS account that owns these directories. Application-managed paths must not be concurrently renamed or replaced by unrelated host processes. Back up the file volume and private state together while the application is stopped; include the SQLite database and its WAL when copying state. A file volume alone cannot reconstruct account records or committed upload offsets.
-
-Use either the native commands above or the included container:
+## Development and release
 
 ```sh
-docker compose up --build -d
-```
-
-The default container endpoint is http://127.0.0.1:8080, with separate persistent volumes for files and state. Set the HTTPS origin and secure-cookie environment variables in Compose when using a TLS proxy. Open the endpoint to complete setup before giving other people access.
-
-The default chunk is **100 MiB (104,857,600 bytes)**. `FB_UPLOAD_CHUNK_SIZE` accepts an integer from 64 KiB through 100 MiB for faster verification. `FB_MAX_FILE_SIZE` can lower the file limit; it must fit within 12,000 chunks and 1 TiB. For example, `FB_UPLOAD_CHUNK_SIZE=102400` permits a 1 GiB fixture with 10,486 chunks. The bootstrap API supplies these limits to the browser, including its hashing worker. Existing sessions retain their original chunk size and can resume after the configuration changes.
-
-## Development and validation
-
-```sh
-npm run check           # lint, types, production build, backend and starter checks
+npm run check
 npx playwright install chromium
-npm run test:e2e        # builds and runs the real browser workflow
-npm audit
+npm run test:e2e
 ```
 
-An existing Chromium binary can be selected with `FB_CHROMIUM_PATH=/absolute/path/to/chrome`. Tests create disposable directories and do not initialize your own workspace.
+[The testing guide](docs/testing.md) explains the container stress suite, mounted-filesystem fixtures and optional PostgreSQL checks. Verification output is generated locally and excluded from source releases. Application state uses SQLite and needs no database service; the starter's optional Prisma/PostgreSQL tooling remains available.
 
-Backend coverage includes real HTTP streaming, an actual 100 MiB chunk followed by a second chunk, dropped connections, corrupt and incomplete chunks, stale attempts, duplicate commits, destination conflicts, scope/permission enforcement, and SIGKILL immediately after append, publication-link creation, publication, and cancellation cleanup. A **200 GiB manifest** is validated without creating a 200 GiB test fixture. The browser test uploads 101 MiB, interrupts the next chunk, reloads, reselects the source, and verifies byte-identical completion. It also exercises setup, users, previews, downloads, and mobile layout. A full 200 GB transfer and physical power-loss/hardware tests have **not** been performed.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for development conventions, [SECURITY.md](SECURITY.md) for private vulnerability reporting, and [the release guide](docs/releasing.md) for portable source/runtime packaging. Version history is in [CHANGELOG.md](CHANGELOG.md).
 
-The dedicated [container verification configuration](compose.verify.yml) adds a production app with 100 KiB chunks, a Chromium runner, disposable PostgreSQL, and a second production app with a 32 MiB filesystem. The scripts under `scripts/verify-container-*.mjs` exercise a real 1 GiB transfer, controlled server SIGKILL/restart, actual `ENOSPC`, each permission independently, and browser resumption after interruption/reload. The host fault helper records memory samples and performs the two fault injections. The [verification report](verification/REPORT.md) includes results, screenshots, limitations, and reproduction commands. The complete [verification bundle](https://transfer.ke.wang/attachments/f0cef1998fe0c290650b57a7004b1b15?fileName=filebrowser-verification-2026-10-06-frontend-redesign.tar.gz) was uploaded to session `111111` and its downloaded SHA-256 was verified.
+## Project structure
 
-The starter's optional Prisma/PostgreSQL tools and their isolated checks remain available. Application state uses Node's built-in SQLite; it needs no database service. The PostgreSQL fixture test is skipped unless `TEST_DATABASE_URL` is supplied. Nodemon uses explicit backend/shared watch roots and a Chokidar 4 override to avoid the vulnerable legacy brace parser. For scripts outside those watch roots, pass `--watch` explicitly.
-
-## Repository map
-
-| Directory | Purpose |
+| Path | Purpose |
 | --- | --- |
-| `frontend/` | Setup, login, file UI, administration, hashing worker, upload coordinator |
-| `backend/app.ts` | Authenticated HTTP API and runtime request validation |
-| `backend/auth.ts` | Passwords and revocable cookie sessions |
-| `backend/store.ts` | Durable state, SQLite schema, and instance exclusion |
-| `backend/uploads.ts` | Upload state machine and crash recovery |
-| `backend/storage/` | Virtual paths, storage contracts, local streaming implementation |
-| `shared/types.ts` | Shared API types and file/chunk limits |
-| `tests/` | HTTP, large-file, crash, production, toolchain, and browser tests |
-| `scripts/verify-container-*.mjs` | Production-container API, browser, large-transfer, disk-pressure, and fault-injection harnesses |
-| `verification/` | Verification report, screenshots, and machine-readable evidence |
+| `frontend/` | File UI, setup, administration, hashing worker and upload coordinator |
+| `backend/` | Authenticated HTTP API, SQLite state, storage adapters and upload recovery |
+| `shared/` | Shared types and limits |
+| `tests/` | HTTP, storage, crash-recovery, production and browser checks |
+| `scripts/` | Build, packaging and disposable verification tools |
+| `examples/` | Portable service configuration |
+| `docs/` | Deployment, upload protocol, testing and release guides |
+| `licenses/` | Notices for bundled fonts and frontend libraries |
 
-## Scope
+## License and attribution
 
-This first version provides local storage. It does not yet provide an rclone bridge, cloud backends, public share links, recursive folder deletion, ZIP downloads, file editing, or a storage quota system. Transfers persist until completed or explicitly canceled; they do not silently expire. Automatic retries stop after eight consecutive failures, preserving committed progress for manual resumption.
-
-Downloads support HTTP byte ranges. Strong file-version validators (`ETag`/`If-Range`) and tests of native browser download interruption/resumption remain to be implemented; current download verification covers complete downloads and explicit range requests.
+Project source is [MIT licensed](LICENSE). Third-party packages and bundled fonts retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md). [NOTICE.md](NOTICE.md) credits the starter and interface design influences.

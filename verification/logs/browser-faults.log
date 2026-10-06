@@ -1,5 +1,0 @@
-PASS browser loses a real successful commit response, queries the saved offset, and completes without duplicate bytes
-PASS corrupting one parallel part yields checksum rejection, zero committed bytes, and a byte-identical whole-chunk retry
-PASS same-tab pause/resume retains its verified manifest and hashes the file only once
-PASS browser cancellation after four committed chunks removes staging and never publishes a partial file
-PASS no unhandled browser errors during fault recovery

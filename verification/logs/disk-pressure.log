@@ -1,5 +1,0 @@
-PASS disk-constrained production container uses a real 32 MiB tmpfs: 
-PASS capacity guard returns 507 and retains committed progress: 16588800 bytes
-DISK_PRESSURE_CHECKPOINT 16588800
-PASS actual ENOSPC during append rolls back the whole chunk: offset stays 16588800
-PASS freeing space permits byte-identical resumption and completion: 20971520 bytes, SHA-256 386e98830b84502a4e7325c9bc2b05de23c054bb896f2ed9b9e3edfd7ab91562

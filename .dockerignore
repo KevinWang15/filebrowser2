@@ -6,7 +6,11 @@ dist
 !.env.example
 data
 .filebrowser
+.filebrowser-*
+backend/generated
 test-results
 playwright-report
 *.log
 verification
+deployment
+release
