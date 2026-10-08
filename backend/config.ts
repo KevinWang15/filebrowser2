@@ -16,7 +16,7 @@ export function storageLocations(root: string, state: string) {
   // Whole-filesystem browsing has no outside directory. Use the namespace that
   // the file API rejects to keep SQLite accounts/sessions private in that case.
   if (inside && !location.split('/').some(part => part.toLowerCase().startsWith('.filebrowser-'))) {
-    throw new Error('State directory must be outside a local target root or inside a reserved .filebrowser-* directory')
+    throw new Error('State directory must be outside a local target root or inside a reserved .filebrowser-* directory. Choose a narrower target root, or move private state to a reserved directory and set FB_STATE_DIR before restarting.')
   }
   return { storageRoot, stateDirectory }
 }

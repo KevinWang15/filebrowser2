@@ -56,7 +56,7 @@ export default function App() {
     {error ? <div className="splash-error"><IconAlertTriangle size={16} /><span>{error}</span><button type="button" className="btn btn-sm" onClick={() => void refresh()}><IconRefresh size={14} />Try again</button></div>
       : <div className="splash-loading"><Spinner /><span>Opening workspace…</span></div>}
   </div>
-  if (bootstrap.needsSetup || !bootstrap.user) return <><AuthScreen setup={bootstrap.needsSetup} siteName={bootstrap.siteName} setupLocalPath={bootstrap.setupLocalPath} onDone={refresh} /><Tooltips /></>
+  if (bootstrap.needsSetup || !bootstrap.user) return <><AuthScreen setup={bootstrap.needsSetup} siteName={bootstrap.siteName} setupLocalPath={bootstrap.setupLocalPath} setupLocalReadOnly={bootstrap.setupLocalReadOnly} onDone={refresh} /><Tooltips /></>
   return <Workspace key={bootstrap.user.id} bootstrap={bootstrap} user={bootstrap.user} onAuthChanged={refresh} />
 }
 

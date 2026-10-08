@@ -29,7 +29,7 @@ const indexSchema = z.coerce.number().int().min(0).max(MAX_CHUNKS)
 interface AppOptions {
   frontendRoot?: string; logger?: boolean; stateDirectory?: string
   secureCookies?: boolean; publicOrigin?: string; uploadFaults?: UploadFaults
-  chunkSize?: number; maxFileSize?: number; setupLocalPath?: string
+  chunkSize?: number; maxFileSize?: number; setupLocalPath?: string; setupLocalReadOnly?: boolean
   smbEnabled?: boolean; protocolDirectory?: string; smbPublicHost?: string
 }
 
@@ -122,6 +122,7 @@ export async function createApp(options: AppOptions = {}) {
     if (isFsError(error, 'ENOTEMPTY')) return reply.code(409).send({ message: 'This directory is not empty', code: 'NOT_EMPTY' })
     if (isFsError(error, 'ENOSPC') || isFsError(error, 'EDQUOT')) return reply.code(507).send({ message: 'Storage is full. Free space and resume.', code: 'DISK_FULL' })
     if (isFsError(error, 'EACCES') || isFsError(error, 'EPERM')) return reply.code(403).send({ message: 'Storage access was denied', code: 'STORAGE_PERMISSION' })
+    if (isFsError(error, 'EROFS')) return reply.code(403).send({ message: 'Storage is mounted read-only. Enable Read only for this target.', code: 'STORAGE_READ_ONLY' })
     if (error instanceof Error && 'code' in error && String(error.code).startsWith('SQLITE_CONSTRAINT')) return reply.code(409).send({ message: 'This account or destination already exists', code: 'CONFLICT' })
     if (error instanceof Error && 'errcode' in error && typeof error.errcode === 'number' && (error.errcode & 255) === 19) return reply.code(409).send({ message: 'This account or destination already exists', code: 'CONFLICT' })
     const status = error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
@@ -131,7 +132,8 @@ export async function createApp(options: AppOptions = {}) {
 
   app.get('/health', async () => ({ status: 'ok', commit: process.env.FB_BUILD_COMMIT ?? 'local' }))
   app.get('/api/bootstrap', async request => ({ needsSetup: store.users().length === 0, siteName: store.setting('siteName', 'Filebrowser'), user: request.currentUser,
-    targets: request.currentUser ? targets.list(request.currentUser) : [], setupLocalPath: store.users().length ? '' : options.setupLocalPath ?? process.env.FB_SETUP_LOCAL_PATH ?? './data', upload: limits }))
+    targets: request.currentUser ? targets.list(request.currentUser) : [], setupLocalPath: store.users().length ? '' : options.setupLocalPath ?? process.env.FB_SETUP_LOCAL_PATH ?? './data',
+    setupLocalReadOnly: !store.users().length && (options.setupLocalReadOnly ?? process.env.FB_SETUP_LOCAL_READ_ONLY === 'true'), upload: limits }))
   app.post('/api/setup', async (request, reply) => mutate('setup', async () => {
     const attempt = auth.throttle(request.ip)
     if (store.users().length) throw new HttpError(409, 'Setup is already complete')

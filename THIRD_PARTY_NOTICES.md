@@ -15,7 +15,9 @@ These fonts are not covered by the project's MIT license. The font license files
 
 ## Frontend libraries
 
-The compiled frontend includes React, React DOM, Scheduler, Tabler Icons, and hash-wasm. They are distributed under MIT licenses. Their upstream license texts are included in `licenses/frontend/` and accompany both distributions and production frontend builds.
+The compiled frontend includes React, React DOM, Scheduler, Tabler Icons, hash-wasm, zxcvbn-ts (core, common and English dictionaries, dictionary-compression), and fastest-levenshtein. The libraries are distributed under MIT licenses. Their upstream license texts are included in `licenses/frontend/` and accompany both distributions and production frontend builds.
+
+The zxcvbn-ts English dictionary includes OpenSubtitles 2024 data from OPUS under ODC-BY; its upstream attribution is preserved in [the dictionary notices](licenses/frontend/zxcvbn-ts-language-en-THIRD_PARTY_LICENSES.md).
 
 Backend dependencies keep their original notices alongside their installed files. Development tools are listed in `package-lock.json` and are excluded from the packaged application runtime.
 

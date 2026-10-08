@@ -49,6 +49,7 @@ export interface Bootstrap {
   user: User | null
   targets: Target[]
   setupLocalPath: string
+  setupLocalReadOnly: boolean
   upload: { chunkSize: number; maxFileSize: number; maxConnections: number }
 }
 

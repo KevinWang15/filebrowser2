@@ -9,8 +9,8 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Four-step first-run wizard for workspace name, storage, administrator account, and review.
 - Optional first storage target: configure a local directory, S3-compatible bucket, FTP/FTPS server, or SFTP server during setup, or add storage later.
 - Explicit storage configuration: no filesystem is exposed until a named target is configured; the suggested local path is only a wizard default.
-- Initial read-only target configuration directly in the setup wizard.
-- Administrator password confirmation, show/hide controls, and a password-length strength indicator.
+- Initial read-only target configuration directly in the setup wizard, with a deployment option to preselect read-only access.
+- Administrator password confirmation, show/hide controls, and a locally evaluated zxcvbn-ts strength meter that checks common passwords, repetition, sequences, keyboard patterns, and account/workspace names, with improvement suggestions.
 - Automatic sign-in after successful setup and protection against repeating or concurrently completing setup.
 - Retryable local setup failures that clean up the attempted target and leave administrator creation unfinished.
 - Configurable workspace name displayed in the sidebar and sign-in screen, editable later by administrators.

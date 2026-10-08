@@ -40,6 +40,27 @@ test('reserved in-root account state cannot be listed or downloaded',async t=>{
   }
 })
 
+test('whole-filesystem read-only setup works with nested reserved state and keeps accounts private',async t=>{
+  const root=await mkdtemp(join(tmpdir(),'filebrowser-root-setup-'))
+  const stateDirectory=join(root,'state','.filebrowser-state')
+  const app=await createApp({stateDirectory,setupLocalPath:'/',setupLocalReadOnly:true})
+  t.after(async()=>{await app.close();await rm(root,{recursive:true,force:true})})
+  const url=await app.listen({host:'127.0.0.1',port:0})
+  const bootstrap=await(await fetch(url+'/api/bootstrap')).json()
+  assert.equal(bootstrap.setupLocalReadOnly,true)
+  assert.equal(bootstrap.setupLocalPath,'/')
+  const setup=await fetch(url+'/api/setup',{method:'POST',headers:{'x-filebrowser-request':'1','content-type':'application/json'},body:JSON.stringify({username:'admin',password:'root-setup-test-password',siteName:'Whole filesystem',target:{...localTarget('/'),readOnly:true}})})
+  assert.equal(setup.status,201,await setup.clone().text())
+  const cookie=setup.headers.get('set-cookie').split(';')[0]
+  const target=(await(await fetch(url+'/api/targets',{headers:{cookie}})).json())[0]
+  assert.equal(target.readOnly,true)
+  assert.equal((await(await fetch(url+'/api/bootstrap',{headers:{cookie}})).json()).setupLocalReadOnly,false)
+  const files=url+`/api/targets/${target.id}/files`
+  const listing=await(await fetch(files+'?path='+encodeURIComponent(join(root,'state')),{headers:{cookie}})).json()
+  assert.deepEqual(listing.entries,[])
+  assert.equal((await fetch(files+'/content?path='+encodeURIComponent(join(stateDirectory,'filebrowser.sqlite')),{headers:{cookie}})).status,400)
+})
+
 test('runtime chunk overrides are bounded and report a feasible manifest size',()=>{
   assert.deepEqual(uploadConfig(CHUNK_SIZE,MAX_FILE_SIZE),{chunkSize:CHUNK_SIZE,maxFileSize:MAX_FILE_SIZE,maxConnections:4})
   assert.equal(uploadConfig(100*1024).chunkSize,102400)

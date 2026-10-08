@@ -5,11 +5,9 @@ import { ConnectionFields } from './TargetsView'
 import { emptyConnection, TARGET_LABELS } from '../lib/target-connections'
 import { api, errorMessage } from '../api'
 import { Logo, Spinner } from '../components/ui'
+import { PasswordStrength } from '../components/PasswordStrength'
 
 const STEPS = ['Workspace', 'Storage', 'Administrator', 'Review'] as const
-const STRENGTH = [
-  { at: 1, label: 'Too short' }, { at: 8, label: 'Too short' }, { at: 12, label: 'Good' }, { at: 18, label: 'Strong' },
-]
 
 function PasswordInput({ id, value, onChange, setup, autoComplete, placeholder }: {
   id: string; value: string; onChange: (value: string) => void; setup: boolean; autoComplete: string; placeholder: string
@@ -17,14 +15,14 @@ function PasswordInput({ id, value, onChange, setup, autoComplete, placeholder }
   const [visible, setVisible] = useState(false)
   return <div className="input-group">
     <input id={id} className="input" type={visible ? 'text' : 'password'} autoComplete={autoComplete} value={value} placeholder={placeholder}
-      onChange={event => onChange(event.target.value)} required minLength={setup ? 12 : 1} maxLength={128} />
+      onChange={event => onChange(event.target.value)} required minLength={setup ? 12 : 1} maxLength={128} aria-describedby={setup ? 'password-strength' : undefined} />
     <button type="button" className="icon-btn" aria-label={visible ? 'Hide password' : 'Show password'} onClick={() => setVisible(!visible)}>
       {visible ? <IconEyeOff size={15} /> : <IconEye size={15} />}
     </button>
   </div>
 }
 
-export function AuthScreen({ setup, siteName, setupLocalPath, onDone }: { setup: boolean; siteName: string; setupLocalPath: string; onDone: () => Promise<void> }) {
+export function AuthScreen({ setup, siteName, setupLocalPath, setupLocalReadOnly, onDone }: { setup: boolean; siteName: string; setupLocalPath: string; setupLocalReadOnly: boolean; onDone: () => Promise<void> }) {
   const [step, setStep] = useState(0)
   const [name, setName] = useState(siteName)
   const [username, setUsername] = useState(setup ? 'admin' : '')
@@ -32,11 +30,10 @@ export function AuthScreen({ setup, siteName, setupLocalPath, onDone }: { setup:
   const [confirm, setConfirm] = useState('')
   const [targetName, setTargetName] = useState('Local')
   const [connection, setConnection] = useState<TargetConnection>(emptyConnection('local', setupLocalPath))
-  const [targetReadOnly, setTargetReadOnly] = useState(false)
+  const [targetReadOnly, setTargetReadOnly] = useState(setupLocalReadOnly)
   const [addTarget, setAddTarget] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const strength = STRENGTH.filter(level => password.length >= level.at).length
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setError('')
     if (setup && step === 0) { setStep(1); return }
@@ -63,7 +60,7 @@ export function AuthScreen({ setup, siteName, setupLocalPath, onDone }: { setup:
       <form className="auth-card" onSubmit={event => void submit(event)} noValidate={false}>
         {setup && <ol className="stepper" aria-label="Setup progress">
           {STEPS.map((label, index) => <li key={label} className={index < step ? 'is-done' : index === step ? 'is-current' : ''} aria-current={index === step ? 'step' : undefined}>
-            <span className="stepper-dot">{index < step ? <IconCheck size={11} stroke={3} /> : index + 1}</span>{label}
+            <span className="stepper-dot">{index < step ? <IconCheck size={11} stroke={3} /> : index + 1}</span><span className="stepper-label">{label}</span>
           </li>)}
         </ol>}
         <div className="auth-heading"><h1>{heading}</h1><p>{description}</p></div>
@@ -80,6 +77,7 @@ export function AuthScreen({ setup, siteName, setupLocalPath, onDone }: { setup:
             <div className="field"><label htmlFor="setup-target-name">Target name</label><input id="setup-target-name" className="input" value={targetName} required maxLength={60} onChange={event => setTargetName(event.target.value)} /></div>
             <div className="field"><label htmlFor="setup-target-type">Storage type</label><select id="setup-target-type" className="select" value={connection.type} onChange={event => { const type = event.target.value as TargetType; setConnection(emptyConnection(type, setupLocalPath)); setTargetName(previous => previous === 'Local' || Object.keys(TARGET_LABELS).some(value => previous === value.toUpperCase()) ? type === 'local' ? 'Local' : type.toUpperCase() : previous) }}>{Object.entries(TARGET_LABELS).map(([type, label]) => <option key={type} value={type}>{label}</option>)}</select></div>
             <ConnectionFields value={connection} onChange={setConnection} />
+            {connection.type === 'local' && setupLocalPath && <p className="field-hint">Suggested local directory: <code>{setupLocalPath}</code>. This directory will appear as / when browsing files.</p>}
             <label className="perm-option"><span className="perm-text">Read only</span><input type="checkbox" className="switch" checked={targetReadOnly} onChange={event => setTargetReadOnly(event.target.checked)} /></label>
           </>}
         </>}
@@ -89,7 +87,7 @@ export function AuthScreen({ setup, siteName, setupLocalPath, onDone }: { setup:
           <div><dt>Administrator</dt><dd>{username}</dd></div>
           <div><dt>Storage</dt><dd>{addTarget ? targetName + ' · ' + TARGET_LABELS[connection.type] : 'Configure later'}</dd></div>
           {addTarget && <div><dt>Location</dt><dd className="mono">{connection.type === 'local' ? connection.root : connection.type === 's3' ? connection.bucket + (connection.prefix ? '/' + connection.prefix : '') : connection.host + ':' + connection.port + connection.root}</dd></div>}
-          <div><dt>Uploads</dt><dd className="text-success"><IconShieldCheck size={14} /> Resumable, SHA-256 verified</dd></div>
+          <div><dt>Uploads</dt><dd className={addTarget && !targetReadOnly ? 'text-success' : undefined}>{addTarget ? targetReadOnly ? 'Disabled · read only' : <><IconShieldCheck size={14} /> Resumable, SHA-256 verified</> : 'Configure storage first'}</dd></div>
         </dl>}
 
         {(!setup || step === 2) && <>
@@ -102,10 +100,7 @@ export function AuthScreen({ setup, siteName, setupLocalPath, onDone }: { setup:
             <label htmlFor="auth-password">Password</label>
             <PasswordInput id="auth-password" value={password} onChange={setPassword} setup={setup} autoComplete={setup ? 'new-password' : 'current-password'}
               placeholder={setup ? 'At least 12 characters' : '••••••••••••'} />
-            {setup && <div className="strength" data-level={strength}>
-              {STRENGTH.map((_, index) => <span key={index} className={index < strength ? 'is-on' : ''} />)}
-              <small>{password ? STRENGTH[Math.max(0, strength - 1)].label : 'Use 12 or more characters'}</small>
-            </div>}
+            {setup && <PasswordStrength password={password} username={username} workspace={name} />}
           </div>
           {setup && <div className="field">
             <label htmlFor="auth-confirm">Confirm password</label>

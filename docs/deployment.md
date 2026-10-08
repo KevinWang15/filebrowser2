@@ -58,6 +58,7 @@ The [systemd example](../examples/systemd/filebrowser.service) assumes this runt
 | `HOST` | `127.0.0.1` | Listen address; use `0.0.0.0` for all IPv4 interfaces |
 | `PORT` | `3000` | HTTP port |
 | `FB_SETUP_LOCAL_PATH` | `./data` | Wizard suggestion only; does not create a target |
+| `FB_SETUP_LOCAL_READ_ONLY` | `false` | Preselect Read only in setup, for a physically read-only local mount |
 | `FB_STATE_DIR` | `./.filebrowser-state` | Private writable SQLite state, target encryption key and remote chunk staging |
 | `FB_PUBLIC_ORIGIN` | Request origin | Actual browser-facing origin when behind a proxy |
 | `FB_SECURE_COOKIES` | `false` | Set `true` when the browser uses HTTPS |
@@ -73,6 +74,10 @@ Configure targets in **Storage targets**, then grant each member independent acc
 Keep state outside all visible local targets, or inside a reserved `.filebrowser-*` directory. For optional whole-host administration, explicitly create a Local target with root `/`, use private state such as `/var/lib/filebrowser/.filebrowser-state`, and run with the intended OS permissions. File APIs reject symlinks, special files and reserved paths. Each writable local root has an exclusive application lock.
 
 For a physically read-only bind mount, mount it with `:ro` and check **Read only** when creating the corresponding Local target in setup or administration. Account administration and other writable targets remain available. Retained uploads can resume after that target becomes writable again. Read-only local targets create no lock or staging files on the file mount.
+
+To browse the host's entire filesystem in a container, bind host `/` to `/files` and configure the Local target as `/files`, with **Read only** enabled for a read-only bind. Set `FB_SETUP_LOCAL_READ_ONLY=true` to preselect that choice. The target appears as `/` in the browser; a target configured as `/` instead browses the container's filesystem. Docker may require `rslave` bind propagation when the source includes its own data directory.
+
+Keep private state in a reserved directory when browsing a filesystem that contains it. Set `FB_STATE_DIR=/state/.filebrowser-state` with the existing state volume still mounted at `/state`. This also protects state reached through the host filesystem bind. For an existing installation, stop the application, back up the state volume, and move its existing contents (including hidden files, `targets.key`, SQLite files, and protocol state) into that subdirectory before changing `FB_STATE_DIR`. Preserve ownership and permissions. Setting the variable without moving existing state creates a fresh installation. Never disable the private-state validation to make a root target work.
 
 Connections and grants live in SQLite. Target secrets are encrypted with the private `targets.key` in the state directory; preserve that key with the database. SFTP requires a pinned SHA-256 server host key and OpenSSH fsync support for upload. FTPS verifies normal certificate trust; install private CA certificates through Node's `NODE_EXTRA_CA_CERTS` when needed. Never disable TLS verification. S3 connections specify bucket, region, optional endpoint/prefix and credentials. See [target semantics](storage-targets.md).
 
