@@ -47,7 +47,7 @@ function containsDirectory(parent: string, child: string) {
 export class Targets {
   private key: Buffer
   private backends = new Map<string, Promise<Backend>>()
-  constructor(readonly store: Store, readonly stateDirectory: string, private publishFault?: () => void) {
+  constructor(readonly store: Store, readonly stateDirectory: string, private accessChanged: () => void, private publishFault?: () => void) {
     const keyPath = join(stateDirectory, 'targets.key')
     try { this.key = readFileSync(keyPath) } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
@@ -143,7 +143,7 @@ export class Targets {
       .run(id, body.name, body.connection.type, this.encrypt(body.connection), +body.enabled, +body.readOnly, new Date().toISOString())
     return this.adminView(this.row(id))
   }
-  async update(id: string, input: z.infer<typeof targetSchema>) {
+  async update(id: string, input: z.infer<typeof targetSchema>, authorize: () => void) {
     const body = targetSchema.parse(input), row = this.row(id), previous = this.connection(row)
     if (previous.type !== body.connection.type) throw new HttpError(400, 'Create a new target to change the storage type')
     const record = body.connection as unknown as Record<string, unknown>, old = previous as unknown as Record<string, unknown>
@@ -163,6 +163,7 @@ export class Targets {
         this.validate(body.connection, id)
         await writable.init(); await access(writable.root, constants.W_OK); await writable.lock()
       }
+      authorize()
       this.store.db.prepare('UPDATE targets SET name=?,connection=?,enabled=?,read_only=? WHERE id=?')
         .run(body.name, this.encrypt(body.connection), +body.enabled, +body.readOnly, id)
     } catch (error) {
@@ -175,6 +176,7 @@ export class Targets {
       }
       throw error
     }
+    this.accessChanged()
     await this.release(id)
     if (writable) this.backends.set(id, Promise.resolve(writable))
     return this.adminView(this.row(id))
@@ -185,6 +187,7 @@ export class Targets {
       throw new HttpError(409, 'This target has transfer history or protocol shares. Disable it to retain those records.')
     }
     this.store.db.prepare('DELETE FROM targets WHERE id=?').run(id)
+    this.accessChanged()
     await this.release(id)
   }
   async backend(id: string): Promise<Backend> {

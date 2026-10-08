@@ -41,6 +41,7 @@ export interface FileEntry {
   size: number
   modifiedAt: string
   uploading?: boolean
+  uploadId?: string
 }
 
 export interface Bootstrap {

@@ -43,8 +43,9 @@ export async function createApp(options: AppOptions = {}) {
   const stateDirectory = resolve(options.stateDirectory ?? process.env.FB_STATE_DIR ?? './.filebrowser-state')
   const protocolDirectory = resolve(options.protocolDirectory ?? process.env.FB_SMB_CONTROL_DIR ?? join(stateDirectory, 'protocols'))
   const store = new Store(stateDirectory)
+  const auth = new Auth(store, options.secureCookies ?? process.env.FB_SECURE_COOKIES === 'true')
   let targets: Targets
-  try { targets = new Targets(store, stateDirectory, options.uploadFaults?.afterPublishLink) } catch (error) { store.close(); throw error }
+  try { targets = new Targets(store, stateDirectory, () => auth.recheckStreams(), options.uploadFaults?.afterPublishLink) } catch (error) { store.close(); throw error }
   const uploads = new Uploads(store, targets, options.uploadFaults)
   const archives = new Map<string, Promise<Archives>>()
   const archiveResources = new ArchiveResources()
@@ -63,16 +64,15 @@ export async function createApp(options: AppOptions = {}) {
     const pending = archives.get(targetId); archives.delete(targetId)
     if (pending) { try { (await pending).close() } catch { /* Initialization failed without allocating archive resources. */ } }
   }
-  const auth = new Auth(store, options.secureCookies ?? process.env.FB_SECURE_COOKIES === 'true')
+  const app = Fastify({ logger: options.logger ? { level: process.env.FB_LOG_LEVEL ?? 'info' } : false, bodyLimit: 2 * 1024 * 1024, requestTimeout: 60 * 60 * 1000,
+    connectionTimeout: 0, forceCloseConnections: true, ajv: { customOptions: { coerceTypes: false, removeAdditional: false } } })
   let shares: DirectoryShares
   try {
     shares = new DirectoryShares(store, targets, protocolDirectory,
     options.smbEnabled ?? process.env.FB_SMB_ENABLED === 'true', options.smbPublicHost || process.env.FB_SMB_PUBLIC_HOST || null)
-    await uploads.recover(); await shares.init()
+    await uploads.recover((targetId, error) => app.log.warn({ err: error, targetId }, 'Local target recovery could not finish')); await shares.init()
   }
   catch (error) { uploads.close(); await targets.close(); store.close(); throw error }
-  const app = Fastify({ logger: options.logger ? { level: process.env.FB_LOG_LEVEL ?? 'info' } : false, bodyLimit: 2 * 1024 * 1024, requestTimeout: 60 * 60 * 1000,
-    connectionTimeout: 0, forceCloseConnections: true, ajv: { customOptions: { coerceTypes: false, removeAdditional: false } } })
   await app.register(cookie)
   app.decorate('auth', auth)
   app.decorateRequest('currentUser', null)
@@ -210,7 +210,7 @@ export async function createApp(options: AppOptions = {}) {
     }
     return { targetId, path: directory, entries: entries.map(e => {
       const upload = pending.get(e.path)
-      return { ...e, path: posix.join(directory, e.name), ...(upload ? { uploading: true, size: Math.min(e.size, upload.committed_bytes) } : {}) }
+      return { ...e, path: posix.join(directory, e.name), ...(upload ? { uploading: true, uploadId: upload.id, size: Math.min(e.size, upload.committed_bytes) } : {}) }
     }) }
   })
   // Explicit HEAD routes avoid Fastify's automatic stream draining and prevent
@@ -336,8 +336,7 @@ export async function createApp(options: AppOptions = {}) {
   app.patch<{ Params: { id: string } }>('/api/admin/targets/:id', async request => {
     const actor = requireAdmin(request), id = idSchema.parse(request.params.id)
     return mutate(id, async () => {
-      const target = await targets.update(id, targetSchema.parse(request.body))
-      auth.recheckStreams()
+      const target = await targets.update(id, targetSchema.parse(request.body), () => { requireAdmin(request) })
       await closeArchives(id)
       store.audit(actor.username, 'target.updated', target.name, id)
       await shares.publish(true)
@@ -347,7 +346,7 @@ export async function createApp(options: AppOptions = {}) {
   app.delete<{ Params: { id: string } }>('/api/admin/targets/:id', async (request, reply) => {
     const actor = requireAdmin(request), id = idSchema.parse(request.params.id), name = targets.row(id).name
     return mutate(id, async () => {
-      await targets.remove(id); auth.recheckStreams(); await closeArchives(id)
+      await targets.remove(id); await closeArchives(id)
       store.audit(actor.username, 'target.deleted', name)
       return reply.code(204).send()
     })

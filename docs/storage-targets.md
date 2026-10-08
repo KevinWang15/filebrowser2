@@ -17,7 +17,7 @@ Every file URL contains `/api/targets/:targetId/files`; browser routes contain `
 
 Secret fields are write-only in the admin API: responses show blank values and indicate which fields have saved secrets. Leaving an existing secret blank keeps it. Connection JSON is encrypted with AES-256-GCM using `targets.key` (mode 0600) in the private state directory. Back up the key with SQLite. Encryption protects copied database files, not an attacker who can read the entire running application's state.
 
-Use **Test connection** to check access to the configured root/bucket. Normal browsing does not contact other targets. A remote outage does not prevent the application starting or other targets being used. Capacity is unknown for adapters without a meaningful quota API; the UI displays that explicitly. Read only applies independently to a target, including administrators, while account management remains available.
+Use **Test connection** to check access to the configured root/bucket. Normal browsing does not contact other targets. Local recovery failures and remote outages do not prevent the application starting or other targets being used. An unavailable local root retains its upload checkpoints for retry after storage returns. Capacity is unknown for adapters without a meaningful quota API; the UI displays that explicitly. Read only applies independently to a target, including administrators, while account management remains available.
 
 Account disabling, password changes and permission edits do not contact storage for unchanged grant scopes. Administrators can revoke access during an outage. New or changed scopes must resolve to an existing directory before they can be assigned.
 

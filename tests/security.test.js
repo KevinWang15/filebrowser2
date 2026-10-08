@@ -133,6 +133,34 @@ test('a demoted administrator cannot finish a user creation that was waiting on 
   assert.ok(!(await f.request('/admin/users', 'GET', undefined, second.cookie)).json().some(user => user.username === 'unauthorized-account'))
 })
 
+test('a revoked administrator cannot commit a target write-access transition and its temporary lock is released', async t => {
+  const f = await fixture(t), second = await f.member([], 'admin', 'second-admin')
+  const root = join(f.root, 'readonly')
+  await mkdir(root)
+  const config = { ...localTarget(root, true), name: 'Read-only fixture' }
+  const created = await f.request('/admin/targets', 'POST', config)
+  assert.equal(created.statusCode, 201, created.body)
+  const targetId = created.json().id, previous = LocalStorage.prototype.init
+  let release, enter
+  const waiting = new Promise(resolve => { release = resolve }), entered = new Promise(resolve => { enter = resolve })
+  const restore = () => { release(); LocalStorage.prototype.init = previous }
+  t.after(restore)
+  LocalStorage.prototype.init = async function () {
+    if (this.root === root) { enter(); await waiting }
+    return previous.call(this)
+  }
+  const pending = f.request('/admin/targets/' + targetId, 'PATCH', { ...config, readOnly: false })
+  await entered
+  assert.equal((await f.request('/admin/users/' + f.admin.id, 'PATCH', { username: 'admin', role: 'user', disabled: false, grants: [] }, second.cookie)).statusCode, 200)
+  release()
+  assert.equal((await pending).statusCode, 401)
+  restore()
+  const targets = (await f.request('/admin/targets', 'GET', undefined, second.cookie)).json()
+  assert.equal(targets.find(target => target.id === targetId).readOnly, true)
+  const permitted = await f.request('/admin/targets/' + targetId, 'PATCH', { ...config, readOnly: false }, second.cookie)
+  assert.equal(permitted.statusCode, 200, permitted.body)
+})
+
 test('revoking access while a listing waits prevents the old scope from being returned', async t => {
   const f = await fixture(t), member = await f.member()
   await writeFile(join(f.files, 'team', 'confidential.txt'), 'scope-private-data')
@@ -171,7 +199,7 @@ test('revoking access during upload initialization prevents a pending file and s
 })
 
 for (const archive of [false, true]) {
-  for (const revocation of ['permissions', 'logout', 'target', 'target removal']) {
+  for (const revocation of ['permissions', 'logout', 'target', 'target removal', 'expiry']) {
     test(`${archive ? 'single-file archive' : 'file download'} is aborted during ${revocation} revocation, even with a stalled source`, { timeout: 15000 }, async t => {
       const f = await fixture(t), member = await f.member()
       await writeFile(join(f.files, 'team', 'secret.bin'), Buffer.alloc(2 * 1024 * 1024))
@@ -190,11 +218,13 @@ for (const archive of [false, true]) {
         assert.equal(ticket.statusCode, 200, ticket.body)
         path = ticket.json().url
       }
+      if (revocation === 'expiry') f.app.auth.store.db.prepare('UPDATE sessions SET expires_at=? WHERE user_id=?').run(Date.now() + 1000, member.id)
       const response = await fetch(f.address + path, { headers: { cookie: member.cookie } })
       assert.equal(response.status, 200)
       const reader = response.body.getReader()
       assert.ok((await reader.read()).value.length > 0)
-      if (revocation === 'logout') assert.equal((await f.request('/auth/logout', 'POST', undefined, member.cookie)).statusCode, 204)
+      if (revocation === 'expiry') { /* The expiry timer must close the stalled source without another request. */ }
+      else if (revocation === 'logout') assert.equal((await f.request('/auth/logout', 'POST', undefined, member.cookie)).statusCode, 204)
       else if (revocation === 'target') assert.equal((await f.request('/admin/targets/' + f.targetId, 'PATCH', { ...localTarget(f.files), enabled: false })).statusCode, 200)
       else if (revocation === 'target removal') assert.equal((await f.request('/admin/targets/' + f.targetId, 'DELETE')).statusCode, 204)
       else assert.equal((await f.request('/admin/users/' + member.id, 'PATCH', { username: member.username, role: 'user', disabled: false, grants: [] })).statusCode, 200)
@@ -206,3 +236,17 @@ for (const archive of [false, true]) {
     })
   }
 }
+
+test('download authorization does not query SQLite for every streamed buffer', async t => {
+  const f = await fixture(t)
+  const bytes = Buffer.alloc(2 * 1024 * 1024, 0x61)
+  await writeFile(join(f.files, 'large.bin'), bytes)
+  const db = f.app.auth.store.db, previous = db.prepare
+  let queries = 0
+  db.prepare = function (...args) { queries++; return previous.apply(this, args) }
+  t.after(() => { db.prepare = previous })
+  const response = await f.request(`/targets/${f.targetId}/files/content?path=/large.bin`)
+  assert.equal(response.statusCode, 200)
+  assert.deepEqual(response.rawPayload, bytes)
+  assert.ok(queries < 40, `A 2 MiB download prepared ${queries} statements`)
+})

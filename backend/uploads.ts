@@ -78,20 +78,27 @@ export class Uploads {
     if (row.status !== 'uploading') throw new HttpError(409, row.error ?? `Transfer is ${row.status}`, 'UPLOAD_STATE')
   }
   revoke(userId: string) { for (const [id, attempt] of this.attempts) if (this.store.uploadMetadata(id)?.user_id === userId) this.failAttempt(attempt) }
-  async recover() {
-    for (const row of this.store.retainedUploads().filter(row => row.status === 'canceling' && this.targets.row(row.target_id).type === 'local' && this.targets.row(row.target_id).enabled && !this.targets.row(row.target_id).read_only)) {
+  async recover(report: (targetId: string, error: unknown) => void) {
+    for (const target of this.store.targets().filter(target => target.type === 'local' && target.enabled && !target.read_only)) {
+      try { await this.recoverTarget(target.id) }
+      catch (error) { report(target.id, error) }
+    }
+  }
+  private async recoverTarget(targetId: string) {
+    // Probe once before changing any sessions. An unavailable target keeps its
+    // checkpoints for retry and must not prevent administration or other targets.
+    const storage = await this.targets.backend(targetId)
+    const retained = this.store.retainedUploads().filter(row => row.target_id === targetId)
+    for (const row of retained.filter(row => row.status === 'canceling')) {
       try {
-        const storage = await this.targets.backend(row.target_id)
         await storage.removeStage(row.id, row.path, row.storage_token)
         this.store.db.prepare("UPDATE uploads SET status='canceled',error=NULL,updated_at=? WHERE id=?").run(new Date().toISOString(), row.id)
       } catch (error) {
         this.store.db.prepare('UPDATE uploads SET error=? WHERE id=?').run(error instanceof Error ? error.message : 'Cancellation cleanup failed', row.id)
       }
     }
-    const active = this.store.activeUploads().filter(row => this.targets.row(row.target_id).type === 'local' && this.targets.row(row.target_id).enabled && !this.targets.row(row.target_id).read_only)
-    for (const row of active) {
+    for (const row of retained.filter(row => row.status === 'uploading' || row.status === 'publishing')) {
       try {
-        const storage = await this.targets.backend(row.target_id)
         const manifest = this.manifest(row)
         if (row.status === 'publishing' && await storage.isPublished(row.path, row.storage_token, manifest.size)) {
           // Re-sync the directory before recording completion after an interrupted publish.
@@ -108,9 +115,7 @@ export class Uploads {
         this.store.db.prepare("UPDATE uploads SET status='failed',error=?,updated_at=? WHERE id=?").run(error instanceof Error ? error.message : 'Recovery failed', new Date().toISOString(), row.id)
       }
     }
-    for (const target of this.store.targets().filter(t => t.type === 'local' && t.enabled && !t.read_only)) {
-      await (await this.targets.backend(target.id)).orphanStages(new Set(this.store.retainedUploads().filter(row => row.target_id === target.id).map(r => r.id)), this.store.uploadIds())
-    }
+    await storage.orphanStages(new Set(this.store.retainedUploads().filter(row => row.target_id === targetId).map(row => row.id)), this.store.uploadIds())
   }
   async initialize(user: User, manifest: UploadManifest, session: () => void = () => {}): Promise<UploadSession> {
     const access = this.targets.access(user, manifest.targetId, 'upload'), storage = await this.targets.backend(manifest.targetId)

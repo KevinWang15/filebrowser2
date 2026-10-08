@@ -106,7 +106,7 @@ export function FileTable(props: ListProps) {
     <tbody>
       {range.before > 0 && <tr className="spacer" aria-hidden="true"><td colSpan={6} style={{ height: range.before }} /></tr>}
       {entries.slice(range.start, range.end).map(entry => <Row key={entry.path} entry={entry} props={props} selected={selected.has(entry.path)}
-        cursor={props.cursor === entry.path} progress={props.pending.get(entry.path)} />)}
+        cursor={props.cursor === entry.path} progress={entry.uploadId ? props.pending.get(entry.uploadId) : undefined} />)}
       {range.after > 0 && <tr className="spacer" aria-hidden="true"><td colSpan={6} style={{ height: range.after }} /></tr>}
     </tbody>
   </table>
@@ -135,7 +135,7 @@ const Card = memo(function Card({ entry, props, selected, cursor, progress }: { 
 
 export function FileGrid(props: ListProps) {
   return <div className="file-grid" role="list">
-    {props.entries.map(entry => <Card key={entry.path} entry={entry} props={props} selected={props.selected.has(entry.path)} cursor={props.cursor === entry.path} progress={props.pending.get(entry.path)} />)}
+    {props.entries.map(entry => <Card key={entry.path} entry={entry} props={props} selected={props.selected.has(entry.path)} cursor={props.cursor === entry.path} progress={entry.uploadId ? props.pending.get(entry.uploadId) : undefined} />)}
   </div>
 }
 

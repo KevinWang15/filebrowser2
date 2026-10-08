@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHash } from 'node:crypto'
-import { mkdtemp, rm, readFile, mkdir, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, readFile, mkdir, writeFile, rename } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { DatabaseSync } from 'node:sqlite'
@@ -48,6 +48,44 @@ test('setup can finish without targets; uploads require a target identity', asyn
   assert.equal((await f.request('/uploads', 'POST', body)).status, 400)
   assert.equal((await f.request('/admin/targets', 'POST', localTarget(join(f.root, 'added')))).status, 201)
   assert.equal((await (await f.request('/targets')).json()).length, 1)
+})
+
+test('an unavailable local target preserves upload checkpoints without blocking startup or other targets', async t => {
+  const f = await fixture(t), targetId = await firstTarget(path => f.request(path))
+  const root = join(f.root, 'a'), offline = root + '-offline'
+  const created = await f.request('/admin/targets', 'POST', { ...localTarget(join(f.root, 'b')), name: 'Healthy' })
+  assert.equal(created.status, 201)
+  const healthyId = (await created.json()).id
+  await upload(f, healthyId, 'healthy.txt', Buffer.from('other target stays usable'))
+  const bytes = Buffer.alloc(65536 + 7, 0x61)
+  const initialized = await f.request('/uploads', 'POST', { ...manifest(targetId, 'retained.bin', bytes), hashes: [bytes.subarray(0, 65536), bytes.subarray(65536)].map(bytes => createHash('sha256').update(bytes).digest('hex')) })
+  assert.equal(initialized.status, 201)
+  const session = await initialized.json()
+  const sendChunk = async index => {
+    const response = await f.request(`/uploads/${session.id}/chunks/${index}/start`, 'POST', { connections: 1 })
+    assert.equal(response.status, 200, await response.clone().text())
+    const attempt = await response.json(), part = attempt.parts[0]
+    const sent = await fetch(`${f.address}/api/uploads/${session.id}/attempts/${attempt.id}/parts/0`, { method: 'PUT', headers: { cookie: f.cookie, 'x-filebrowser-request': '1', 'content-type': 'application/octet-stream' }, body: bytes.subarray(index * 65536, index * 65536 + part.size) })
+    assert.equal(sent.status, 204)
+    assert.equal((await f.request(`/uploads/${session.id}/chunks/${index}/commit`, 'POST', { attemptId: attempt.id })).status, 200)
+  }
+  await sendChunk(0)
+  await rename(root, offline)
+  await writeFile(root, 'Unusable root fixture')
+  await f.restart()
+  assert.equal((await fetch(f.address + '/health')).status, 200)
+  assert.equal((await f.request('/admin/targets')).status, 200)
+  assert.equal((await f.request('/admin/users')).status, 200)
+  assert.equal(await (await f.request(`/targets/${healthyId}/files/content?path=/healthy.txt`)).text(), 'other target stays usable')
+  assert.ok(!(await f.request(`/targets/${targetId}/files`)).ok)
+  const retained = await (await f.request('/uploads/' + session.id)).json()
+  assert.equal(retained.status, 'uploading')
+  assert.equal(retained.nextChunk, 1)
+  assert.equal(retained.committedBytes, 65536)
+  await rm(root); await rename(offline, root)
+  await sendChunk(1)
+  assert.equal((await f.request('/uploads/' + session.id + '/complete', 'POST', {})).status, 200)
+  assert.deepEqual(Buffer.from(await (await f.request(`/targets/${targetId}/files/content?path=/retained.bin`)).arrayBuffer()), bytes)
 })
 
 test('identical names, active reservations, archives and grants are isolated by target', async t => {

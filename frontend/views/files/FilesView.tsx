@@ -96,7 +96,7 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
 
   const pending = useMemo(() => {
     const map = new Map<string, number>()
-    for (const t of transfers) if (t.targetId === user.targetId && t.session && t.state !== 'completed' && t.size) map.set(join(t.directory, t.name) + '.uploading', Math.min(1, (t.committedBytes + t.sentBytes) / t.size))
+    for (const t of transfers) if (t.targetId === user.targetId && t.session && t.state !== 'completed' && t.size) map.set(t.session.id, Math.min(1, (t.committedBytes + t.sentBytes) / t.size))
     return map
   }, [transfers, user.targetId])
 

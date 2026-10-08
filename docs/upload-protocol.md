@@ -35,7 +35,7 @@ stateDiagram-v2
     canceled --> [*]
 ```
 
-Attempts are ephemeral; sessions and their committed prefixes survive process restarts. Local recovery runs at startup. Remote recovery happens when the session resumes, completes or cancels, so an offline remote cannot prevent unrelated targets starting. A publishing session reconciles a lost publication acknowledgment before trying again. The backend proves its own published file's identity; it never cancels by deleting an unrelated final file.
+Attempts are ephemeral; sessions and their committed prefixes survive process restarts. Local recovery runs separately for each target at startup. An unavailable local root retains its session checkpoints while administration and other targets remain available; saved uploads can resume once storage returns. Remote recovery happens when the session resumes, completes or cancels, so an offline remote cannot prevent unrelated targets starting. A publishing session reconciles a lost publication acknowledgment before trying again. The backend proves its own published file's identity; it never cancels by deleting an unrelated final file.
 
 ## HTTP operations
 
@@ -91,7 +91,7 @@ Temporary payload space is at most one chunk per active session in addition to t
 
 The general maximum is 1 TiB and 12,000 chunks. S3 additionally caps uploads at 10,000 parts and requires multipart chunks of at least 5 MiB except the last. The frontend checks target limits before hashing; the server checks them independently. `FB_UPLOAD_CHUNK_SIZE` accepts 64 KiB through 100 MiB. Existing sessions retain their saved chunk size after configuration changes. A 100 KiB override exercises 10,486 sequential chunks for a 1 GiB local file; remote tests use 5 MiB chunks to satisfy native S3 rules.
 
-Original names over 245 UTF-8 bytes gain a truncated public pending basename and deterministic 16-hex hash before `.uploading`, staying within 255 bytes. Private names, symlinks, traversal, special files and unsupported control/backslash names remain inaccessible through normal file APIs.
+Original names over 245 UTF-8 bytes gain a truncated public pending basename and deterministic 16-hex hash before `.uploading`, staying within 255 bytes. File listings include the managed entry's `uploadId`, so the browser associates progress with the upload session instead of reconstructing a pending filename. Symlinks, traversal, special files and unsupported control/backslash names remain inaccessible through normal file APIs.
 
 ## Guarantees and validation limits
 

@@ -11,6 +11,9 @@ Planned initial release (`0.1.0`).
 - Recursive folder deletion across all targets, with confirmation, per-operation authorization checks, active upload/share protection, and listing refresh after partial failures.
 - Streaming folder and mixed-selection TAR downloads, empty-directory preservation, and cancellation cleanup.
 - Efficient HEAD metadata for files, ranges and archives; unsupported native names cannot break directory listings.
+- Local target recovery failures do not block application startup; saved upload checkpoints remain available for retry.
+- Target edits recheck administrator access before committing; active downloads recheck on access changes and expire even when their sources stall, without per-buffer database queries.
+- Pending-file progress follows upload session identity across scoped folders and shortened long filenames.
 - Targets as the first level of My files, target and folder breadcrumbs, and parent navigation back to the target list.
 - Read-only targets and mounts, explicit target-qualified state and routes, and Ctrl/Command+Up navigation.
 - Signed GHCR container publishing for Linux AMD64 and ARM64 after CI verification.

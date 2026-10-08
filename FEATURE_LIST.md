@@ -41,8 +41,8 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Target visibility limited to enabled targets the current user can access; accounts may have no target grants.
 - Upload sessions restricted to their owner; upload writes also require current target access and a destination within the user's current scope.
 - Server-side permission checks for every protected operation, including native download links and archive tickets.
-- Repeated authorization checks during storage operations, streamed downloads, archive generation, upload reception, and chunk acknowledgment.
-- Account/grant changes revoke sessions and active upload attempts; revoked download and archive streams are closed.
+- Authorization rechecked after asynchronous storage work, during archive generation and upload reception, before chunk acknowledgment, and on access changes for active downloads.
+- Account/grant changes revoke sessions and active upload attempts; revoked or expired download and archive streams close even when their sources stall.
 - Grant revocation, password changes, and edits to permissions on unchanged scopes remain possible while remote storage is offline; new scopes must resolve to existing directories.
 - Permission-aware navigation, buttons, context menus, command actions, and transfer controls in the frontend.
 
@@ -210,6 +210,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Whole-attempt rollback on incomplete, oversized, corrupted, or interrupted parts, including closure of sibling streams.
 - Both final and pending names reserved per target; matching active manifests for the same owner/destination reuse the existing session.
 - Empty-file uploads and names up to 255 UTF-8 bytes; long pending names use a safely truncated basename and deterministic hash suffix.
+- Pending-file progress uses the server's upload session identity in list and grid views, including shortened filenames and scoped folders.
 - Up to 64 unfinished sessions across the application, including retained failed/canceling sessions.
 - Visible `.uploading` entries show saved bytes; local targets use hard-link aliases and remote targets use virtual browser entries.
 - Managed unfinished files cannot be previewed or downloaded and direct conflicting mutations are blocked.
@@ -222,6 +223,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Started folder-upload sessions retain each file's nested destination across reload and resume by selecting that file's original source; files queued only in browser memory must be selected again.
 - Existing sessions retain their original chunk size after runtime configuration changes.
 - Local startup recovery restores missing owned pending aliases, truncates unacknowledged tails, and reconciles interrupted publication/cancellation.
+- Local recovery failures are isolated by target; unavailable roots retain upload checkpoints while administration and other targets remain usable.
 - Remote recovery runs on resume, completion, or cancellation so an offline remote does not block unrelated targets at startup.
 - Durable backend receipts for S3, FTP/FTPS, and SFTP; resume validates saved remote checkpoints before advancing.
 - Publication begins only when every chunk is committed and exposes the final name without concatenating or allocating another full local payload.

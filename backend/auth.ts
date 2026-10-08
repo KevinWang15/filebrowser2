@@ -1,5 +1,5 @@
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'node:crypto'
-import { Transform, type Readable } from 'node:stream'
+import { PassThrough, type Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { User } from '@/shared/types'
@@ -55,11 +55,14 @@ export class Auth {
     if (attempt.count <= 1) this.attempts.delete(ip)
     else this.attempts.set(ip, { ...attempt, count: attempt.count - 1 })
   }
-  authenticate(request: FastifyRequest): User | null {
+  private session(request: FastifyRequest) {
     const token = request.cookies.fb_session
     if (!token || !/^[a-f0-9]{64}$/.test(token)) return null
-    const row = this.store.db.prepare(`SELECT users.* FROM sessions JOIN users ON users.id=sessions.user_id
-      WHERE sessions.hash=? AND sessions.expires_at>? AND users.disabled=0`).get(tokenHash(token), Date.now()) as unknown as UserRow | undefined
+    return this.store.db.prepare(`SELECT users.*,sessions.expires_at FROM sessions JOIN users ON users.id=sessions.user_id
+      WHERE sessions.hash=? AND sessions.expires_at>? AND users.disabled=0`).get(tokenHash(token), Date.now()) as unknown as (UserRow & { expires_at: number }) | undefined
+  }
+  authenticate(request: FastifyRequest): User | null {
+    const row = this.session(request)
     return row ? this.store.publicUser(row) : null
   }
   createSession(userId: string, reply: FastifyReply) {
@@ -74,15 +77,24 @@ export class Auth {
   }
   revoke(userId: string) { this.store.db.prepare('DELETE FROM sessions WHERE user_id=?').run(userId); this.recheckStreams() }
   guardStream(request: FastifyRequest, source: StreamSource, authorize: (user: User) => void): Readable {
-    const check = () => { authorize(requireUser(request)) }
-    try { check() } catch (error) { source.destroy(); throw error }
-    const stream = new Transform({ transform(bytes, _encoding, callback) {
-      try { check(); callback(null, bytes) } catch (error) { callback(error instanceof Error ? error : new Error('Access revoked')) }
-    } })
+    const check = () => {
+      const session = this.session(request)
+      if (!session) throw new HttpError(401, 'Please sign in', 'UNAUTHENTICATED')
+      const user = this.store.publicUser(session)
+      request.currentUser = user
+      authorize(user)
+      return session.expires_at
+    }
+    let expiresAt: number
+    try { expiresAt = check() } catch (error) { source.destroy(); throw error }
+    // Account/session revocations and target changes synchronously recheck active
+    // streams. Expiry also closes stalled sources, without SQL for every buffer.
+    const stream = new PassThrough()
+    const expiry = setTimeout(() => stream.destroy(new HttpError(401, 'Please sign in', 'UNAUTHENTICATED')), Math.max(0, expiresAt - Date.now())).unref()
     const active = { stream, check }
     this.streams.add(active)
     stream.on('error', () => { /* The HTTP consumer handles the stream error. */ })
-    stream.once('close', () => { this.streams.delete(active); source.destroy() })
+    stream.once('close', () => { clearTimeout(expiry); this.streams.delete(active); source.destroy() })
     void pipeline(source, stream).catch(error => stream.destroy(error))
     return stream
   }
