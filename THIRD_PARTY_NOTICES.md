@@ -19,9 +19,9 @@ The compiled frontend includes React, React DOM, Scheduler, Tabler Icons, and ha
 
 Backend dependencies keep their original notices alongside their installed files. Development tools are listed in `package-lock.json` and are excluded from the packaged application runtime.
 
-## Optional SMB companion
+## Samba in container images
 
-The SMB companion installs Samba and its dependencies from Debian packages. These system packages retain their upstream licenses and copyright files under `/usr/share/doc/`; they are not covered by Filebrowser2's MIT license. Corresponding Samba sources are available from [Debian's Samba source package](https://sources.debian.org/src/samba/). The application's SMB verifier uses hash-wasm, whose MIT license is included with the existing application notices and runtime dependency graph.
+The published runtime image and SMB companion targets include Samba and its dependencies from Debian packages. These system packages retain their upstream licenses and copyright files under `/usr/share/doc/`; they are not covered by Filebrowser2's MIT license. Corresponding Samba sources are available from [Debian's Samba source package](https://sources.debian.org/src/samba/). The application's SMB verifier uses hash-wasm, whose MIT license is included with the existing application notices and runtime dependency graph.
 
 ## Remote storage libraries
 

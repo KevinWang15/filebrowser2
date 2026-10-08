@@ -64,7 +64,7 @@ await cp('examples', join(output, 'examples'), { recursive: true })
 await mkdir(join(output, 'docs'))
 for (const name of ['storage-targets.md', 'network-shares.md']) await cp(join('docs', name), join(output, 'docs', name))
 await writeFile(join(output, 'DEPLOYMENT.md'), (await readFile('docs/deployment.md', 'utf8'))
-  .replaceAll('(../examples/', '(examples/').replaceAll('(storage-targets.md)', '(docs/storage-targets.md)'))
+  .replaceAll('(../examples/', '(examples/').replaceAll('(storage-targets.md)', '(docs/storage-targets.md)').replaceAll('(network-shares.md)', '(docs/network-shares.md)'))
 const server = await readFile(join(app, 'dist/server/server.js'))
 let sourceCommit = process.env.FB_BUILD_COMMIT ?? null
 if (!sourceCommit) {

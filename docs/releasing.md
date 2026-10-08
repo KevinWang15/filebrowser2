@@ -21,13 +21,15 @@ Keep private operations outside the public repository. Publishing a Git reposito
 
 Upload reviewed source/runtime archives and checksums to the corresponding GitHub release, and link the release notes to [the changelog](../CHANGELOG.md). Do not include deployment reports, user data, browser traces, private account state, credentials or target-machine details. The source archive should build with `npm ci && npm run build` on a supported platform.
 
-After tests pass, CI builds Linux AMD64/ARM64 runtime images, publishes main as `ghcr.io/kevinwang15/filebrowser2:latest` and `:main`, and adds a commit tag. Version tags also publish semver tags. Pull requests build without publishing. Images carry the source commit in `/health`, OCI labels and build attestations, and are signed by the workflow with GitHub OIDC. Package visibility is managed separately from this workflow.
+After the application, browser, SMB, and remote-storage checks pass, CI calls [the image build workflow](../.github/workflows/build-docker-image.yml). It builds Linux AMD64/ARM64 runtime images, publishes main as `ghcr.io/kevinwang15/filebrowser2:latest` and `:main`, publishes develop as `:develop`, and adds a bare short-commit tag. Version tags also publish semver tags. Pull requests build without publishing; a manual run of the CI workflow runs the checks and image build too.
+
+The published runtime includes all production Node dependencies, CA certificates, Samba, and the SMB account/configuration tools. Compose reuses this image for the web process and optional companion. CI verifies required executables, certificates, the bundled agent, SQLite, and application health on both image architectures before signing. Images carry the source commit in `/health`, OCI labels and build attestations, and are signed by the reusable image workflow with GitHub OIDC. Package visibility is managed separately from this workflow.
 
 With Cosign installed, verify an image built from main by digest:
 
 ```sh
 cosign verify \
-  --certificate-identity https://github.com/KevinWang15/filebrowser2/.github/workflows/ci.yml@refs/heads/main \
+  --certificate-identity https://github.com/KevinWang15/filebrowser2/.github/workflows/build-docker-image.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   ghcr.io/kevinwang15/filebrowser2@sha256:REPLACE_WITH_IMAGE_DIGEST
 ```

@@ -35,7 +35,7 @@ See [deployment and configuration](docs/deployment.md) for native services, cont
 - Light, dark and system themes; compact and comfortable layouts; a file inspector, context menus, keyboard shortcuts, and a command palette.
 - Resumable uploads up to 1 TiB per file, subject to each target's part-count limit, with SHA-256 manifests and sequential 100 MiB chunks. Each current chunk can use one, two, or four connections.
 - Storage adapters with explicit capabilities: local filesystem, S3-compatible object stores, FTP/FTPS and pinned-host-key SFTP. Local staging supports different mounted filesystems; remote uploads retain at most one local chunk.
-- Read-only targets and mounts. Every route, file operation, upload and permission is qualified by target identity. CI publishes signed AMD64/ARM64 container images after checks pass.
+- Read-only targets and mounts. Every route, file operation, upload and permission is qualified by target identity. CI publishes signed AMD64/ARM64 container images with all runtime dependencies, including Samba, after checks pass.
 - Optional authenticated SMB3 directory shares, managed in Settings, with per-user credentials, read-only access and live permission revocation. See [network sharing](docs/network-shares.md).
 
 Symlinks, traversal segments, special files and reserved `.filebrowser-*` paths are inaccessible through the file API. Native names containing backslashes or control characters are skipped in listings and archives. Users see each target’s independently assigned folder as `/`. Browsing and text previews use the read permission; image previews use the download permission. Upload, create-folder, rename and delete permissions are controlled separately.

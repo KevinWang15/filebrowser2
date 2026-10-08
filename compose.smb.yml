@@ -9,11 +9,18 @@ services:
     volumes:
       - protocol-control:/state/protocols
   smb:
+    image: ${FB_IMAGE:-ghcr.io/kevinwang15/filebrowser2:latest}
     build:
       context: .
-      target: smb
+      target: runtime
+    user: "0:0"
+    command: ["node", "agent.mjs"]
     init: true
     restart: unless-stopped
+    environment:
+      FB_SMB_CONTROL_DIR: /control
+      FB_SMB_ALLOWED_ROOTS: '["/files"]'
+      FB_SMB_STATE_DIR: /samba-state
     ports:
       - "${FB_SMB_BIND_ADDRESS:-127.0.0.1}:${FB_SMB_PUBLIC_PORT:-445}:445"
     volumes:

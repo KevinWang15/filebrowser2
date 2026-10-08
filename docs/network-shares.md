@@ -10,6 +10,14 @@ Run the application and companion together:
 FB_SMB_BIND_ADDRESS=0.0.0.0 docker compose -f compose.yml -f compose.smb.yml up -d --build
 ```
 
+Both services use the same complete image, which contains the web application, its production Node dependencies, Samba, CA certificates, and the SMB account/configuration tools. To use the image published by CI instead of building locally:
+
+```sh
+FB_SMB_BIND_ADDRESS=0.0.0.0 docker compose -f compose.yml -f compose.smb.yml up -d --no-build --pull always
+```
+
+Set `FB_IMAGE` to use a specific release tag or digest for both services. The web process runs as `node`; the companion runs `node agent.mjs` as root to manage protocol accounts and start Samba. Its file reads use the application's filesystem identity, and the shared file volume remains mounted read-only.
+
 The web interface remains on the address configured in `compose.yml`. SMB listens on TCP port 445. Omitting `FB_SMB_BIND_ADDRESS` binds the published SMB port to `127.0.0.1`; specify the server's LAN address or `0.0.0.0` for desktop clients. The companion serves the `files` volume through a physical read-only mount. It has no Docker socket or host network mount.
 
 After completing the first-run wizard, open **Settings → Network shares**. Create a share with a name, local target, directory path and owner. The owner must have a grant with both read and download permission on that target, and the directory must be within that grant’s scope. Administrators can disable or remove shares and reset protocol passwords.

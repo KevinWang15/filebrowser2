@@ -10,7 +10,7 @@ docker compose up --build -d
 
 Open `http://127.0.0.1:8080` and complete the setup wizard. The container runs as the unprivileged `node` user, with separate persistent volumes for files and state. The published port is loopback-only by default. To expose the container directly, deliberately change the host binding in `compose.yml`.
 
-CI publishes `ghcr.io/kevinwang15/filebrowser2:latest` for Linux AMD64 and ARM64 after the backend and browser checks pass. Pull access follows the package's visibility; a private package requires registry authentication. To use the prebuilt image:
+CI publishes `ghcr.io/kevinwang15/filebrowser2:latest` for Linux AMD64 and ARM64 after the application, browser, SMB, and remote-storage checks pass. The image includes the compiled web application, production Node dependencies, trusted CA certificates, Samba, and the account/configuration tools used by the SMB agent. Pull access follows the package's visibility; a private package requires registry authentication. To use the prebuilt image:
 
 ```sh
 docker run -d --name filebrowser2 --restart unless-stopped \
@@ -18,6 +18,14 @@ docker run -d --name filebrowser2 --restart unless-stopped \
   -v filebrowser-files:/files -v filebrowser-state:/state \
   ghcr.io/kevinwang15/filebrowser2:latest
 ```
+
+The supplied Compose files can also use the published image without a local build:
+
+```sh
+docker compose up -d --no-build --pull always
+```
+
+Set `FB_IMAGE` to select another image tag or digest. The optional SMB service uses the same image with its companion command and OS user; see [network sharing](network-shares.md).
 
 ## Native build or runtime package
 

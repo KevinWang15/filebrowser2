@@ -1,6 +1,9 @@
 services:
   filebrowser:
-    build: .
+    image: ${FB_IMAGE:-ghcr.io/kevinwang15/filebrowser2:latest}
+    build:
+      context: .
+      target: runtime
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:3000"

@@ -299,13 +299,14 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Linux hosting with Node.js 24+ and SQLite built into Node; no external database service or generated ORM client is required.
 - Native production build/start, portable runtime packages, and a sample systemd service.
 - Docker runtime runs as an unprivileged user with separate persistent file/state volumes and loopback-only published web access by default in Compose.
+- Complete published image includes production Node dependencies, CA certificates, Samba, and SMB account/configuration tools; Compose reuses it for the web service and optional root-run companion.
 - Configurable listen host/port, private state location, setup path suggestion, upload limits, public origin, Secure cookies, logging, and build commit.
 - HTTPS reverse-proxy configuration for same-origin checks, secure sessions, streamed upload bodies, and long transfers.
 - Graceful SIGINT/SIGTERM shutdown closes streams, attempts, targets, shares, and database locks.
 - Explicit rejection of obsolete global/positional storage configuration and unsupported database schemas; this release requires fresh target-aware state rather than automatic migration.
 - Portable runtime packaging includes compiled server/client assets, exact production dependency versions, licenses/notices, deployment guidance, service examples, source commit metadata, and server SHA-256.
 - Source archive packaging requires a clean committed tree, excludes Git history, rejects private/generated artifacts, and writes a SHA-256 sidecar.
-- CI builds Linux AMD64/ARM64 images after application/browser, native SMB, and remote storage checks; pull requests build without publishing.
+- CI calls a dedicated reusable image workflow after application/browser, native SMB, and remote storage checks; builds Linux AMD64/ARM64 images for main, develop, and version tags, and builds pull requests without publishing.
 - GHCR publication with branch/version/commit tags, source commit health metadata, OCI labels, and keyless Cosign signing/verification through GitHub OIDC.
 - Backup guidance covers SQLite/WAL, target encryption keys, file volumes, mounted upload stages, and local/remote receipt metadata.
 - Bundled third-party notices and licenses available alongside built frontend assets and release packages.
