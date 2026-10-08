@@ -188,14 +188,16 @@ test('a failed local setup remains retryable and does not create an administrato
   assert.equal((await successful.json()).role, 'admin')
 })
 
-test('remote roots, bucket names, and endpoints reject traversal, private namespaces and command controls', async t => {
+test('remote roots, bucket names, and endpoints reject traversal and command controls while allowing dot namespaces', async t => {
   const f = await fixture(t, false)
   const base = { name: 'Invalid', enabled: true, readOnly: false }
-  for (const root of ['/root/../escape', '/root/.filebrowser-secret', '/root\\escape', '/root\r\nDELE other']) {
+  for (const root of ['/root/../escape', '/root\\escape', '/root\r\nDELE other']) {
     assert.equal((await f.request('/admin/targets', 'POST', { ...base, connection: { type: 'ftp', host: 'remote.invalid', port: 21, username: 'fixture', password: 'fixture', root, tls: true } })).status, 400)
   }
   const s3 = { type: 's3', bucket: 'bucket', region: 'us-east-1', endpoint: '', prefix: '', accessKeyId: 'fixture', secretAccessKey: 'fixture' }
-  for (const change of [{ endpoint: 'not a URL' }, { endpoint: 'ftp://remote.invalid' }, { prefix: '../private' }, { prefix: '.filebrowser-private' }, { bucket: 'bad/bucket' }]) {
+  for (const change of [{ endpoint: 'not a URL' }, { endpoint: 'ftp://remote.invalid' }, { prefix: '../private' }, { bucket: 'bad/bucket' }]) {
     assert.equal((await f.request('/admin/targets', 'POST', { ...base, connection: { ...s3, ...change } })).status, 400)
   }
+  assert.equal((await f.request('/admin/targets','POST',{...base,name:'Dot FTP',connection:{type:'ftp',host:'remote.invalid',port:21,username:'fixture',password:'fixture',root:'/root/.filebrowser-data',tls:true}})).status,201)
+  assert.equal((await f.request('/admin/targets','POST',{...base,name:'Dot S3',connection:{...s3,prefix:'.filebrowser-data'}})).status,201)
 })

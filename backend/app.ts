@@ -44,7 +44,7 @@ export async function createApp(options: AppOptions = {}) {
   const protocolDirectory = resolve(options.protocolDirectory ?? process.env.FB_SMB_CONTROL_DIR ?? join(stateDirectory, 'protocols'))
   const store = new Store(stateDirectory)
   let targets: Targets
-  try { targets = new Targets(store, stateDirectory, options.uploadFaults?.afterPublishLink, [protocolDirectory]) } catch (error) { store.close(); throw error }
+  try { targets = new Targets(store, stateDirectory, options.uploadFaults?.afterPublishLink) } catch (error) { store.close(); throw error }
   const uploads = new Uploads(store, targets, options.uploadFaults)
   const archives = new Map<string, Promise<Archives>>()
   const archiveResources = new ArchiveResources()
@@ -121,7 +121,7 @@ export async function createApp(options: AppOptions = {}) {
     if (error instanceof HttpError) return reply.code(error.statusCode).send({ message: error.message, code: error.code })
     if (isFsError(error, 'ENOENT')) return reply.code(404).send({ message: 'File or directory not found', code: 'NOT_FOUND' })
     if (isFsError(error, 'EEXIST')) return reply.code(409).send({ message: 'This name already exists', code: 'DESTINATION_EXISTS' })
-    if (isFsError(error, 'ENOTEMPTY')) return reply.code(409).send({ message: 'This folder contains protected or unsupported entries, or changed during deletion. Some contents may already have been removed.', code: 'NOT_EMPTY' })
+    if (isFsError(error, 'ENOTEMPTY')) return reply.code(409).send({ message: 'This folder contains unsupported entries, or changed during deletion. Some contents may already have been removed.', code: 'NOT_EMPTY' })
     if (isFsError(error, 'ENOSPC') || isFsError(error, 'EDQUOT')) return reply.code(507).send({ message: 'Storage is full. Free space and resume.', code: 'DISK_FULL' })
     if (isFsError(error, 'EACCES') || isFsError(error, 'EPERM')) return reply.code(403).send({ message: 'Storage access was denied', code: 'STORAGE_PERMISSION' })
     if (isFsError(error, 'EROFS')) return reply.code(403).send({ message: 'Storage is mounted read-only. Enable Read only for this target.', code: 'STORAGE_READ_ONLY' })

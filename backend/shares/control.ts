@@ -7,7 +7,7 @@ export const shareNameSchema = z.string().min(1).max(48).regex(/^[A-Za-z0-9][A-Z
 export const controlShareSchema = z.object({
   id: z.string().uuid(), name: shareNameSchema,
   path: z.string().max(4096).refine(path => path.startsWith('/') && !/[\\%]/.test(path) && ![...path].some(character => character.charCodeAt(0) < 32) && !/\s$/.test(path)
-    && path.split('/').every(part => part !== '.' && part !== '..' && !part.startsWith('.filebrowser-')), 'Unsupported SMB directory path'),
+    && path.split('/').every(part => part !== '.' && part !== '..'), 'Unsupported SMB directory path'),
   directory: identitySchema, storage: identitySchema.extend({ path: z.string().min(1).max(4096).refine(path => path.startsWith('/') && !/[\\%\r\n]/.test(path) && !/\s$/.test(path), 'Invalid export root') }),
   username: z.string().regex(/^fb_[a-f0-9]{24}$/), uid: z.number().int().min(100_001).max(2_000_000_000),
   ntHash: z.string().regex(/^[A-F0-9]{32}$/),

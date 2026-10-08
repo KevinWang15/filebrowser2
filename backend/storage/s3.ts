@@ -57,7 +57,7 @@ export class S3Storage implements StorageBackend, SequentialUploadBackend {
     }
     for (const object of objects) {
       const name = object.Key!.slice(prefix.length)
-      if (!name || name.includes('/') || name.toLowerCase().startsWith('.filebrowser-')) continue
+      if (!name || name.includes('/')) continue
       try { validName(name) } catch { continue }
       entries.set(name, { name, path: posix.join(directory, name), kind: 'file', size: object.Size ?? 0, modifiedAt: (object.LastModified ?? new Date(0)).toISOString() })
     }
@@ -113,7 +113,7 @@ export class S3Storage implements StorageBackend, SequentialUploadBackend {
     if (entry.kind === 'directory') {
       const prefix = this.key(path) + '/'
       const page = await this.send(() => this.client.send(new ListObjectsV2Command({ Bucket: this.connection.bucket, Prefix: prefix, MaxKeys: 2 })))
-      // Browser listings hide private/unsupported keys. They still prevent removing the folder.
+      // Browser listings omit unsupported keys. They still prevent removing the folder.
       if (page.Contents?.some(object => object.Key !== prefix)) throw Object.assign(new Error('Directory is not empty'), { code: 'ENOTEMPTY' })
     }
     authorize()

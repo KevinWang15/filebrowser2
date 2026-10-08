@@ -34,7 +34,7 @@ Non-administrators see their own connection information in account settings. Pas
 
 Connection addresses default to the web interface's hostname. If SMB uses a different LAN address or the web interface sits behind a proxy/CDN, set `FB_SMB_PUBLIC_HOST` to the hostname or IP clients should reach directly.
 
-SMB requires encryption and signing and accepts SMB3 clients. Guest access, SMB1, symlink traversal and access to private `.filebrowser-*` entries are disabled. The `.uploading` suffix is also hidden and inaccessible through SMB, including ordinary files manually created with that suffix. Use another name for files intended for desktop access. [Samba configuration reference](https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html).
+SMB requires encryption and signing and accepts SMB3 clients. Guest access, SMB1 and symlink traversal are disabled. Application state and `.filebrowser-*` entries follow the exported directory and OS permissions, with exposure controlled by the administrator. The `.uploading` suffix is also hidden and inaccessible through SMB, including ordinary files manually created with that suffix. Use another name for files intended for desktop access. [Samba configuration reference](https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html).
 
 ## Lifecycle and recovery
 

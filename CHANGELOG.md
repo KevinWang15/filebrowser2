@@ -6,6 +6,7 @@ Planned initial release (`0.1.0`).
 
 - First-run administrator setup and revocable authenticated sessions.
 - Named local, S3, FTP/FTPS and SFTP targets with encrypted credentials and independent user grants, scopes and permissions.
+- Application state and `.filebrowser-*` paths follow ordinary target scopes, permissions, and shares; administrators control their exposure without automatic state-directory exclusions.
 - Browsing, folder creation, deletion, previews and byte-range downloads across all target types; file rename and filesystem-directory rename according to each adapter's capabilities.
 - Recursive folder deletion across all targets, with confirmation, per-operation authorization checks, active upload/share protection, and listing refresh after partial failures.
 - Streaming folder and mixed-selection TAR downloads, empty-directory preservation, and cancellation cleanup.

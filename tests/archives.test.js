@@ -50,7 +50,7 @@ export async function unpack(response) {
   return result
 }
 
-test('streamed folder tar includes binary, Unicode, empty directories, and excludes private and unfinished files',async t=>{
+test('streamed folder tar includes dot directories, binary, Unicode and empty directories, excluding managed pending destinations',async t=>{
   const f=await fixture(t)
   const bytes=Buffer.from('pending')
   const init=await f.request('/uploads','POST',{targetId: f.targetId, name:'pending.bin',directory:'/team',size:bytes.length,lastModified:0,chunkSize:CHUNK_SIZE,hashes:[createHash('sha256').update(bytes).digest('hex')]})
@@ -59,14 +59,15 @@ test('streamed folder tar includes binary, Unicode, empty directories, and exclu
   assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'application/x-tar')
   assert.equal(response.headers.get('content-length'),null);assert.equal(response.headers.get('accept-ranges'),'none')
   const entries=await unpack(response)
-  assert.deepEqual([...entries.keys()].sort(),['.visible','binary.bin','empty/','notes #1.txt','ordinary.uploading','文件'.repeat(40)+'.txt'].sort())
+  assert.deepEqual([...entries.keys()].sort(),['.filebrowser-state/','.filebrowser-state/secret','.visible','binary.bin','empty/','notes #1.txt','ordinary.uploading','文件'.repeat(40)+'.txt'].sort())
+  assert.equal(entries.get('.filebrowser-state/secret').bytes.toString(),'secret')
   assert.equal(entries.get('empty/').type,'directory')
   assert.deepEqual(entries.get('binary.bin').bytes,Buffer.from([0,1,255,128,5]))
   assert.equal(entries.get('notes #1.txt').bytes.toString(),'archive text\n')
   assert.equal((await f.request(`/targets/${f.targetId}/files/archive?path=/team`, 'GET',undefined,{range:'bytes=0-20'})).status,416)
   assert.equal((await f.request(`/targets/${f.targetId}/files/archive?path=/team/binary.bin`)).status,400)
   assert.equal((await f.request(`/targets/${f.targetId}/files/archive?path=/../`)).status,400)
-  assert.equal((await f.request(`/targets/${f.targetId}/files/archive?path=/.filebrowser-uploads`)).status,400)
+  assert.equal((await f.request(`/targets/${f.targetId}/files/archive?path=/team/.filebrowser-state`)).status,200)
   assert.equal((await f.request(`/targets/${f.targetId}/files/archive?path=/team/escape.txt`)).status,403)
   assert.equal((await f.request(`/targets/${f.targetId}/files/archive-tickets`,'POST',{paths:['/team/pipe']})).status,400)
   assert.equal((await f.request(`/targets/${f.targetId}/files/archive-tickets`,'POST',{paths:['/team/pending.bin.uploading']})).status,409)

@@ -65,7 +65,7 @@ For local destinations on another mounted filesystem, the payload and current ch
 
 Remote adapters keep receipt metadata and one temporary chunk in the private state directory. They never stage the entire remote file locally. S3 validates the committed multipart parts' checksums, sizes and ETags on resume. FTP/SFTP validate the committed prefix after app restart/reconnect; this can reread a large prefix and costs network traffic without another full-file allocation. SFTP caches a bounded set of authenticated connections with pinned host identity and closes them on target reconfiguration or shutdown. Connection loss during a write explicitly terminates the pending operation so it cannot hang waiting for an SDK stream callback.
 
-The browser's pending `.uploading` entries are virtual for remote targets. Native S3 clients see no object until multipart completion. Native FTP/SFTP clients can see an owned private `.filebrowser-upload-<session>/payload.uploading` stage, but app file APIs reject those reserved directories. Local targets expose a hard-link alias with the public pending name.
+The browser's pending `.uploading` entries are virtual for remote targets. Native S3 clients see no object until multipart completion. FTP/SFTP stages use `.filebrowser-upload-<session>/payload.uploading`; staging directories follow ordinary target scopes and permissions in the file API. Local targets expose a hard-link alias with the public pending name.
 
 ## Failure handling
 

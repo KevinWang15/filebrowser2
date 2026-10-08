@@ -162,7 +162,7 @@ for (const type of Object.keys(connections)) {
   }
 }
 
-test('s3: recursive deletion handles paginated implicit folders and preserves protected keys and adjacent prefixes', { skip: !enabled, timeout: 120_000 }, async t => {
+test('s3: recursive deletion handles paginated implicit folders and dot directories, preserving unsupported keys and adjacent prefixes', { skip: !enabled, timeout: 120_000 }, async t => {
   const client = await bucket(); t.after(() => client.destroy())
   const f = await fixture(t, 's3'), prefix = f.targetConfig.connection.prefix, api = `/targets/${f.targetId}/files`
   // More than one ListObjectsV2 page, without explicit directory markers.
@@ -175,10 +175,14 @@ test('s3: recursive deletion handles paginated implicit folders and preserves pr
   assert.equal((await f.request(api + '?path=/Project')).status, 404)
   assert.equal(await (await f.request(api + '/content?path=/Project-other/keep.txt')).text(), 'keep')
   for (const key of ['Protected/', 'Protected/.filebrowser-state/secret']) await client.send(new PutObjectCommand({ Bucket: s3.bucket, Key: `${prefix}/${key}`, Body: 'private' }))
+  assert.equal((await f.request(api+'?path=/Protected',undefined,'DELETE')).status,200)
+  assert.equal((await f.request(api+'?path=/Protected')).status,404)
+  const unsupported='Protected/bad\\path/secret'
+  await client.send(new PutObjectCommand({Bucket:s3.bucket,Key:`${prefix}/${unsupported}`,Body:'unsupported'}))
   const blocked = await f.request(api + '?path=/Protected', undefined, 'DELETE')
-  assert.equal(blocked.status, 409); assert.match((await blocked.json()).message, /protected or unsupported/)
-  assert.equal((await f.request(api + '?path=/Protected')).status, 200, 'private keys prevent removing the directory marker')
-  for (const key of ['Protected/', 'Protected/.filebrowser-state/secret', 'Project-other/keep.txt']) await client.send(new DeleteObjectCommand({ Bucket: s3.bucket, Key: `${prefix}/${key}` }))
+  assert.equal(blocked.status, 409); assert.match((await blocked.json()).message, /unsupported/)
+  assert.equal((await f.request(api + '?path=/Protected')).status, 200, 'unsupported keys prevent reporting a folder as deleted')
+  for (const key of [unsupported,'Project-other/keep.txt']) await client.send(new DeleteObjectCommand({ Bucket: s3.bucket, Key: `${prefix}/${key}` }))
 })
 
 test('SFTP host identity is enforced and remote failures never leak credentials', { skip: !enabled, timeout: 30_000 }, async t => {
@@ -292,7 +296,7 @@ test('S3 directory prefixes with backslashes and controls never enter browser li
   try {
     for (const Key of keys) await client.send(new PutObjectCommand({ Bucket: s3.bucket, Key, Body: 'unsupported fixture', ContentLength: 19 }))
     const listing = await (await f.request(`/targets/${f.targetId}/files`)).json()
-    assert.deepEqual(listing.entries, [])
+    assert.deepEqual(listing.entries.map(entry=>entry.name), ['.filebrowser-private'])
   } finally { for (const Key of keys) await client.send(new DeleteObjectCommand({ Bucket: s3.bucket, Key })) }
 })
 

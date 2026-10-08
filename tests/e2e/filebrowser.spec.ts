@@ -129,7 +129,7 @@ test('setup, file operations, worker hashing, reload resume, scoped users, and m
   await openLocalFolder(page, '')
   await expect(page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).locator('li')).toHaveText(['My files', 'Local'])
   await page.getByRole('button', { name: 'New folder', exact: true }).click()
-  for (const invalid of ['.FiLeBrowser-private', '文'.repeat(86), 'bad\\name']) {
+  for (const invalid of ['..', '文'.repeat(86), 'bad\\name']) {
     await page.getByLabel('Folder name').fill(invalid)
     await expect(page.getByLabel('Folder name')).toHaveAttribute('aria-invalid', 'true')
     await expect(page.getByRole('button', { name: 'Create folder', exact: true })).toBeDisabled()

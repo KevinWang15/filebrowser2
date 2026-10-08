@@ -76,7 +76,7 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend, Di
     return join(this.staging, id)
   }
   // The central registry can point to a stage on another mounted filesystem.
-  // These private, app-created symlinks are never accessible through file APIs.
+  // These app-created locators are symlinks; ordinary file operations do not follow symlinks.
   private async linkedStage(id: string) {
     const registry = this.stage(id)
     let info
@@ -126,7 +126,7 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend, Di
     const result: FileEntry[] = []
     // Bound stat concurrency: large directories must not exhaust file descriptors.
     for (let start = 0; start < entries.length; start += 64) {
-      const batch = await Promise.all(entries.slice(start, start + 64).filter(e => !e.name.toLowerCase().startsWith('.filebrowser-') && !e.isSymbolicLink() && (e.isDirectory() || e.isFile())).map(async e => {
+      const batch = await Promise.all(entries.slice(start, start + 64).filter(e => !e.isSymbolicLink() && (e.isDirectory() || e.isFile())).map(async e => {
         let path: string
         try { path = normalizePath(directory + '/' + e.name) }
         catch (error) { if (error instanceof HttpError && error.statusCode === 400) return null; throw error }
@@ -143,7 +143,7 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend, Di
     const handle = await opendir(await this.safePath(directory))
     // opendir's async iterator closes every directory on completion or abort.
     for await (const child of handle) {
-      if (child.name.toLowerCase().startsWith('.filebrowser-') || child.isSymbolicLink() || (!child.isDirectory() && !child.isFile())) continue
+      if (child.isSymbolicLink() || (!child.isDirectory() && !child.isFile())) continue
       let path: string
       try { path = normalizePath(directory + '/' + child.name) }
       catch (error) { if (error instanceof HttpError && error.statusCode === 400) continue; throw error }

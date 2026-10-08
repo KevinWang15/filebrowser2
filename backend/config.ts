@@ -1,25 +1,4 @@
 import { CHUNK_SIZE, MAX_CHUNKS, MAX_FILE_SIZE } from '@/shared/types'
-import { isAbsolute, relative, resolve } from 'node:path'
-
-export function storageLocations(root: string, state: string) {
-  const storageRoot = resolve(root)
-  const stateDirectory = resolve(state)
-  if (storageRoot.split('/').some(part => part.toLowerCase().startsWith('.filebrowser-'))) {
-    throw new Error('A local target root cannot be inside a reserved .filebrowser-* directory')
-  }
-  const targetLocation = relative(stateDirectory, storageRoot)
-  if (!isAbsolute(targetLocation) && targetLocation !== '..' && !targetLocation.startsWith('../')) {
-    throw new Error('State directory cannot contain a local target root')
-  }
-  const location = relative(storageRoot, stateDirectory)
-  const inside = !isAbsolute(location) && location !== '..' && !location.startsWith('../')
-  // Whole-filesystem browsing has no outside directory. Use the namespace that
-  // the file API rejects to keep SQLite accounts/sessions private in that case.
-  if (inside && !location.split('/').some(part => part.toLowerCase().startsWith('.filebrowser-'))) {
-    throw new Error('State directory must be outside a local target root or inside a reserved .filebrowser-* directory. Choose a narrower target root, or move private state to a reserved directory and set FB_STATE_DIR before restarting.')
-  }
-  return { storageRoot, stateDirectory }
-}
 
 export function serverStorage(argv: string[] = process.argv.slice(2), env = process.env) {
   if (argv.length) throw new Error('Command-line arguments are not supported; configure the server through environment variables and storage targets in the application')

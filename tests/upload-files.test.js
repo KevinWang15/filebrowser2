@@ -23,10 +23,11 @@ test('folder selections preserve their root and nested paths independently of th
 
 test('unsafe folder paths, mismatched filenames, and overlong paths are rejected before queueing', () => {
   const file = new File([], 'file.txt')
-  for (const relativePath of ['/file.txt', '../file.txt', 'Project/../file.txt', './file.txt', 'Project//file.txt', 'Project\\bad/file.txt', '.FiLeBrowser-state/file.txt', 'Project/\n/file.txt', 'Project/wrong.txt', '文'.repeat(86) + '/file.txt', 'Project/ /file.txt']) {
+  for (const relativePath of ['/file.txt', '../file.txt', 'Project/../file.txt', './file.txt', 'Project//file.txt', 'Project\\bad/file.txt', 'Project/\n/file.txt', 'Project/wrong.txt', '文'.repeat(86) + '/file.txt', 'Project/ /file.txt']) {
     assert.throws(() => uploadDestination({ file, relativePath }, '/'), /Invalid upload path/)
   }
   assert.throws(() => uploadDestination({ file, relativePath: 'Project/file.txt' }, '/' + 'a'.repeat(4090)), /too long/)
+  assert.equal(uploadDestination({file,relativePath:'.FiLeBrowser-state/file.txt'},'/').directory,'/.FiLeBrowser-state')
 })
 
 test('dropped directories read every batch, recurse, preserve mixed roots, and skip empty directories', async () => {

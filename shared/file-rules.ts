@@ -5,7 +5,7 @@ export const MAX_NAME_BYTES = 255
 const utf8 = new TextEncoder()
 
 export function isValidFileName(name: string): boolean {
-  return !!name.trim() && name !== '.' && name !== '..' && !name.toLowerCase().startsWith('.filebrowser-') &&
+  return !!name.trim() && name !== '.' && name !== '..' &&
     ![...name].some(char => char === '/' || char === '\\' || char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127) &&
     utf8.encode(name).length <= MAX_NAME_BYTES
 }

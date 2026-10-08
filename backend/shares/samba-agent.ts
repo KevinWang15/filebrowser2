@@ -101,7 +101,7 @@ function configuration(shares: ControlShare[], filesystem: { name: string; group
       '', `[${share.name}]`, `path = ${share.storage.path}${share.path === '/' ? '' : share.path}`,
       `valid users = ${share.username}`, 'guest ok = no', 'read only = yes', 'browseable = yes',
       `force user = ${filesystem.name}`, `force group = ${filesystem.group}`, 'follow symlinks = no', 'wide links = no', 'case sensitive = yes',
-      'veto files = /.filebrowser-*/*.uploading/', 'delete veto files = no',
+      'veto files = /*.uploading/', 'delete veto files = no',
     ]), '',
   ].join('\n')
 }

@@ -7,7 +7,7 @@ import { isValidFileName, MAX_NAME_BYTES, MAX_PATH_LENGTH } from '@/shared/file-
 export function normalizePath(input: string): string {
   if (typeof input !== 'string' || input.length > MAX_PATH_LENGTH || input.includes('\\') || [...input].some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)) throw new HttpError(400, 'Invalid path')
   const components = input.split('/').filter(Boolean)
-  if (components.some(p => p === '..' || p === '.' || p.toLowerCase().startsWith('.filebrowser-'))) throw new HttpError(400, 'This path is not allowed')
+  if (components.some(p => p === '..' || p === '.')) throw new HttpError(400, 'This path is not allowed')
   return '/' + components.join('/')
 }
 

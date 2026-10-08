@@ -246,7 +246,7 @@ test('protocol configuration rejects unsafe names, paths, symlinks, files and wr
   await symlink(f.root, join(f.root, 'files', 'escape'))
   for (const body of [
     { name: 'global' }, { name: 'Homes' }, { name: 'Printers' }, { name: 'a\nb' }, { name: 'bad/name' },
-    { path: '/..' }, { path: '/.filebrowser-uploads' }, { path: '/percent%U' }, { path: '/escape' }, { path: '/regular.txt' },
+    { path: '/..' }, { path: '/percent%U' }, { path: '/escape' }, { path: '/regular.txt' },
     { protocol: 'unknown' }, { readOnly: false },
   ]) {
     const response = await f.request('/admin/shares', 'POST', { targetId: f.targetId, name: 'Safe', path: '/', ownerId: f.admin.id, ...body })
@@ -257,4 +257,17 @@ test('protocol configuration rejects unsafe names, paths, symlinks, files and wr
   await f.request('/admin/users/' + extraAdmin.id, 'PATCH', { username: 'another', role: 'admin', grants: [], disabled: true })
   assert.equal((await (await f.request('/shares')).json()).shares.find(share => share.id === created.share.id).status, 'blocked')
   assert.equal(JSON.parse(await readFile(join(f.directory, 'desired.json'), 'utf8')).shares.length, 0)
+})
+
+test('SMB shares may export application state and .filebrowser-prefixed directories',async t=>{
+  const f=await fixture(t)
+  await mkdir(join(f.root,'files','.filebrowser-data'))
+  const dot=await f.create('Dot','/.filebrowser-data')
+  assert.equal(dot.share.status,'active')
+  const target=await (await f.request('/admin/targets','POST',{...localTarget(join(f.root,'state'),true),name:'State'})).json()
+  const response=await f.request('/admin/shares','POST',{targetId:target.id,name:'Application-state',path:'/',ownerId:f.admin.id})
+  assert.equal(response.status,201,await response.clone().text())
+  assert.equal((await response.json()).share.status,'active')
+  const control=JSON.parse(await readFile(join(f.directory,'desired.json'),'utf8'))
+  assert.ok(control.shares.some(share=>share.storage.path===join(f.root,'state')))
 })

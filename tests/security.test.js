@@ -70,13 +70,15 @@ test('the routed API URL enforces CSRF and authentication even when static segme
   assert.equal(valid.statusCode, 200)
 })
 
-test('local target roots reject private directories and overlapping namespaces in either direction', async t => {
+test('local target roots reject overlapping targets and allow application-state directories', async t => {
   const f = await fixture(t)
-  for (const root of [join(f.files, 'team'), f.root, f.files + '/', join(f.files, '.filebrowser-uploads'), join(f.root, '.FILEBROWSER-private'), join(f.stateDirectory, 'targets')]) {
+  for (const root of [join(f.files, 'team'), f.root, f.files + '/', join(f.files, '.filebrowser-uploads')]) {
     const response = await f.request('/admin/targets', 'POST', { ...localTarget(root), name: 'Unsafe root' })
     assert.ok([400, 409].includes(response.statusCode), `${root}: ${response.body}`)
   }
   assert.equal((await f.request('/admin/targets', 'POST', { ...localTarget(join(f.root, 'files-other')), name: 'Sibling' })).statusCode, 201)
+  assert.equal((await f.request('/admin/targets', 'POST', { ...localTarget(f.stateDirectory), name: 'Application state', readOnly:true })).statusCode, 201)
+  assert.equal((await f.request('/admin/targets', 'POST', { ...localTarget(join(f.root, '.FILEBROWSER-data')), name: 'Dot directory' })).statusCode, 201)
 })
 
 test('remote targets reject equal or nested namespaces while allowing sibling prefixes and roots', async t => {

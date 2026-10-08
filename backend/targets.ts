@@ -6,7 +6,6 @@ import { z } from 'zod'
 import { FULL_PERMISSIONS, type AdminTarget, type Target, type TargetAccess, type TargetConnection, type User, type Permission } from '@/shared/types'
 import { Store, type TargetRow } from './store'
 import { HttpError, isFsError } from './errors'
-import { storageLocations } from './config'
 import { LocalStorage } from './storage/local'
 import { S3Storage } from './storage/s3'
 import { FileRemoteStorage } from './storage/remote'
@@ -17,7 +16,7 @@ import { normalizePath, requirePermission } from './storage/paths'
 const text = z.string().max(4096).refine(v => ![...v].some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127), 'Control characters are not allowed')
 const secret = z.string().max(32768)
 const host = text.min(1).refine(v => !/[\s/@\\]/.test(v), 'Use a host name or IP address')
-const root = text.min(1).refine(v => v.startsWith('/') && !v.includes('\\') && !v.split('/').some(p => p === '..' || p === '.' || p.toLowerCase().startsWith('.filebrowser-')), 'Use an absolute path without traversal')
+const root = text.min(1).refine(v => v.startsWith('/') && !v.includes('\\') && !v.split('/').some(p => p === '..' || p === '.'), 'Use an absolute path without traversal')
 const connectionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('local'), root: text.min(1) }).strict(),
   z.object({ type: z.literal('s3'), bucket: text.min(1).max(255).refine(v => !/[\s/\\]/.test(v), 'Invalid bucket name'), region: text.min(1), endpoint: text.default(''), prefix: text.default(''),
@@ -48,7 +47,7 @@ function containsDirectory(parent: string, child: string) {
 export class Targets {
   private key: Buffer
   private backends = new Map<string, Promise<Backend>>()
-  constructor(readonly store: Store, readonly stateDirectory: string, private publishFault?: () => void, private privateDirectories: string[] = []) {
+  constructor(readonly store: Store, readonly stateDirectory: string, private publishFault?: () => void) {
     const keyPath = join(stateDirectory, 'targets.key')
     try { this.key = readFileSync(keyPath) } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
@@ -108,14 +107,7 @@ export class Targets {
   private validate(connection: TargetConnection, currentId?: string) {
     if (connection.type === 'ftp' || connection.type === 'sftp') connection.root = normalizePath(connection.root)
     if (connection.type === 'local') {
-      let locations: ReturnType<typeof storageLocations>
-      try {
-        locations = storageLocations(connection.root, this.stateDirectory)
-        for (const directory of this.privateDirectories) storageLocations(connection.root, directory)
-        if (containsDirectory(this.stateDirectory, locations.storageRoot) || this.privateDirectories.some(directory => containsDirectory(directory, locations.storageRoot))) throw new Error('A local target root cannot expose private application directories')
-      }
-      catch (error) { throw new HttpError(400, error instanceof Error ? error.message : 'Invalid local target root') }
-      connection.root = locations.storageRoot
+      connection.root = resolve(connection.root)
     }
     if (connection.type === 's3') {
       if (connection.endpoint) {
@@ -124,7 +116,7 @@ export class Targets {
         if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new HttpError(400, 'Use an HTTP or HTTPS S3 endpoint without credentials')
       }
       connection.prefix = connection.prefix.replace(/^\/+|\/+$/g, '')
-      if (connection.prefix.includes('\\') || connection.prefix.split('/').some(p => p === '..' || p === '.' || p.toLowerCase().startsWith('.filebrowser-'))) throw new HttpError(400, 'Invalid S3 prefix')
+      if (connection.prefix.includes('\\') || connection.prefix.split('/').some(p => p === '..' || p === '.')) throw new HttpError(400, 'Invalid S3 prefix')
       if (!connection.accessKeyId || !connection.secretAccessKey) throw new HttpError(400, 'S3 access key and secret are required')
     }
     if (connection.type === 'sftp' && !connection.password && !connection.privateKey) throw new HttpError(400, 'Provide an SFTP password or private key')

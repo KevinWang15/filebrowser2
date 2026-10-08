@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test'
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile, symlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { FULL_PERMISSIONS } from '../../shared/types'
 
@@ -137,6 +137,7 @@ test('folder uploads preserve paths and resume after reload; folder deletion rem
   await mkdir(join(targetRoot, 'Incoming', 'Protected', '.filebrowser-private'), { recursive: true })
   await writeFile(join(targetRoot, 'Incoming', 'Protected', 'removed.txt'), 'removed before failure')
   await writeFile(join(targetRoot, 'Incoming', 'Protected', '.filebrowser-private', 'keep.txt'), 'private')
+  await symlink(join(targetRoot,'Incoming','ordinary.txt'),join(targetRoot,'Incoming','Protected','link'))
   await page.getByRole('button', { name: 'Refresh files', exact: true }).click()
   await page.getByLabel('Select Protected', { exact: true }).check()
   let refreshed = false
@@ -146,10 +147,11 @@ test('folder uploads preserve paths and resume after reload; folder deletion rem
   })
   await page.getByRole('button', { name: 'Delete selected items', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click()
-  await expect(page.getByRole('dialog')).toContainText('protected or unsupported entries')
+  await expect(page.getByRole('dialog')).toContainText('unsupported entries')
   await expect.poll(() => refreshed).toBe(true)
   await expect(stat(join(targetRoot, 'Incoming', 'Protected', 'removed.txt'))).rejects.toMatchObject({ code: 'ENOENT' })
-  expect(await readFile(join(targetRoot, 'Incoming', 'Protected', '.filebrowser-private', 'keep.txt'), 'utf8')).toBe('private')
+  await expect(stat(join(targetRoot, 'Incoming', 'Protected', '.filebrowser-private'))).rejects.toMatchObject({code:'ENOENT'})
+  expect(await readFile(join(targetRoot,'Incoming','ordinary.txt'),'utf8')).toBe('file-only upload')
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
   expect(errors).toEqual([])
 })

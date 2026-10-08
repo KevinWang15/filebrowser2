@@ -87,7 +87,8 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Upload staging on the destination filesystem, including nested mounts on a different device, with a durable central stage registry.
 - Device/inode checks for upload ownership and native directory exports; unavailable mounted staging retains its identity instead of creating replacement data on another filesystem.
 - Exclusive application locks for writable local roots, released by the OS after process termination.
-- Explicit whole-host browsing through a local target rooted at `/`, subject to OS permissions and protected private state paths.
+- Explicit whole-host browsing through a local target rooted at `/`, subject to OS permissions and configured user grants.
+- Local targets may contain application state, be inside its directory, or use the state directory itself; state files and `.filebrowser-*` names follow ordinary scopes and permissions.
 
 ## S3-compatible storage
 
@@ -153,7 +154,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Rename dialog selects the basename while preserving the extension for convenient editing.
 - Create-folder and rename dialogs reject reserved names, slashes, control characters, whitespace-only names, and names exceeding 255 UTF-8 bytes before submission, using the same filename rules as the API.
 - Delete files and folders recursively across all target types, including nested files and empty directories; multiple selected items are processed individually with progress and per-item failure messages.
-- Recursive deletion rechecks delete access and upload/share protections during traversal, preserves private or unsupported entries, and refreshes the listing after partial failures.
+- Recursive deletion rechecks delete access and upload/share protections during traversal, preserves unsupported entries, and refreshes the listing after partial failures.
 - Confirmation dialogs for permanent deletion and prevention of renaming/deleting the user's virtual root.
 - Destination conflict checks that preserve existing names and report busy or conflicting operations.
 - Protection of unfinished upload destinations, pending names, and containing directories from conflicting mutations.
@@ -181,7 +182,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Streamed uncompressed TAR downloads of the current folder or a selected folder, preserving empty directories and Unicode names.
 - One TAR for mixed file/folder selections or multiple files, with duplicate selections and selected descendants deduplicated.
 - Relative archive paths preserve separate files with identical basenames; a single folder archive contains its children relative to that folder.
-- Archives exclude private state, symlinks, special files, unsupported names, and managed unfinished uploads while retaining ordinary dotfiles and ordinary `.uploading` names.
+- Archives include application state and dot directories within the granted scope, excluding symlinks, special files, unsupported names, and managed pending upload destinations while retaining ordinary `.uploading` names.
 - No completed temporary archive, full-tree manifest, or browser-side archive buffering; cancellation closes source streams and releases archive resources.
 - Two-minute, single-use archive tickets tied to the authenticated user, target, current download permission, and unchanged scope; HEAD probes do not consume tickets.
 - Archive selections limited to 1,000 items and 64 KiB of serialized paths, with budgets of eight pending tickets/two active streams per user and 64 tickets/eight streams application-wide.
@@ -258,7 +259,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Member visibility limited to their own share connection details, with scoped paths and copyable SMB addresses.
 - Configurable public SMB hostname/IP, with the web hostname used by the UI by default.
 - Share states and explanations for active, pending, disabled, blocked, and unavailable service/access conditions.
-- Required SMB encryption/signing and NTLMv2 authentication; guest access, SMB1, symlink following, and private `.filebrowser-*` paths are blocked.
+- Required SMB encryption/signing and NTLMv2 authentication; guest access, SMB1, and symlink following are blocked. Application state and `.filebrowser-*` paths are accessible within the configured share and OS permissions.
 - All `.uploading` names hidden and inaccessible through SMB, including ordinary files with that suffix.
 - Device/inode checks for mounted roots and shared directories; changed/missing directories are blocked individually while unaffected shares remain usable.
 - Physical read-only file mounts and reproduction of the application's UID, GID, and supplementary groups for filesystem reads.
@@ -299,10 +300,10 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 
 - Authenticated file API with same-origin session cookies; write requests require `X-Filebrowser-Request: 1` and origin verification.
 - Strict input schemas, UUID/session validation, JSON body limits, bounded manifests, and binary upload length validation.
-- Path normalization rejects traversal segments, backslashes, control characters, and case-insensitive reserved `.filebrowser-*` components.
+- Path normalization rejects traversal segments, backslashes, and control characters.
 - Shared browser/API filename validation enforces addressable names up to 255 UTF-8 bytes, including multibyte Unicode names; unsupported native names are skipped instead of breaking listings or archives.
 - Local and remote filesystem path checks reject symlinks and special files; local file opens use no-follow semantics.
-- Private application state kept outside visible local targets or inside reserved namespaces, with private state directories/database/key file permissions.
+- State directories, databases, and encryption keys have restrictive OS file permissions; administrators control exposure through storage roots, user grants, and shares without automatic state exclusions.
 - Security headers for content-type sniffing, framing, referrers, and no-store API caching; file/preview responses have a restrictive sandbox Content Security Policy.
 - Exclusive SQLite process lock for application state and additional locks for writable local storage roots.
 - Download/archive concurrency budgets, unfinished-upload limits, and bounded caches/stream buffers to control resource use.

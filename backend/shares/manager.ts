@@ -4,7 +4,6 @@ import { lstat, mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
 import { join, posix } from 'node:path'
 import { isIP } from 'node:net'
 import type { NetworkShare, NetworkShares, ShareCredentials, User } from '@/shared/types'
-import { storageLocations } from '../config'
 import { HttpError, isFsError } from '../errors'
 import type { DirectoryExportBackend } from '../storage/interface'
 import { Targets } from '../targets'
@@ -112,7 +111,6 @@ export class DirectoryShares {
         try {
           const storage = await this.storage(row.target_id)
           const root = this.targets.localRoot(row.target_id)!
-          storageLocations(root, this.directory)
           shares.push({ id: row.id, name: row.name, path: row.path, username: row.username, uid: 100_000 + row.account_sequence,
             directory: { dev: row.directory_dev, ino: row.directory_ino }, storage: { path: root, ...await storage.directoryIdentity('/') }, ntHash: row.secret })
         } catch { /* An unavailable target never authorizes a native export. */ }
@@ -168,7 +166,6 @@ export class DirectoryShares {
     const storage = await this.storage(input.targetId)
     const directory = await storage.directoryIdentity(path)
     const root = { path: this.targets.localRoot(input.targetId)!, ...await storage.directoryIdentity('/') }
-    storageLocations(root.path, this.directory)
     const id = randomUUID(), username = 'fb_' + id.replaceAll('-', '').slice(0, 24)
     // Validate before persisting or generating credentials; Samba expands percent macros in paths.
     controlShareSchema.parse({ id, name: input.name, path, directory, storage: root, username, uid: 100_001, ntHash: '0'.repeat(32) })

@@ -2,12 +2,12 @@ import { localTarget, firstTarget } from './fixtures/targets.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { serverStorage, storageLocations, uploadConfig } from '../backend/config.ts'
+import { serverStorage, uploadConfig } from '../backend/config.ts'
 import { createApp } from '../backend/app.ts'
-import { CHUNK_SIZE, MAX_FILE_SIZE } from '../shared/types.ts'
+import { CHUNK_SIZE, MAX_FILE_SIZE, READ_PERMISSIONS } from '../shared/types.ts'
 
 test('startup reads state and setup configuration without creating an implicit storage target',()=>{
   assert.deepEqual(serverStorage([],{}),{stateDirectory:'./.filebrowser-state',setupLocalPath:'./data'})
@@ -15,33 +15,49 @@ test('startup reads state and setup configuration without creating an implicit s
   for(const args of [['/directory'],['--unknown'],['one','two']])assert.throws(()=>serverStorage(args,{}),/not supported/)
 })
 
-test('whole-filesystem storage requires private state in the reserved namespace',()=>{
-  assert.deepEqual(storageLocations('/','/var/lib/filebrowser/.filebrowser-state'),{storageRoot:'/',stateDirectory:'/var/lib/filebrowser/.filebrowser-state'})
-  assert.throws(()=>storageLocations('/','/var/lib/filebrowser/state'),/State directory/)
-  assert.throws(()=>storageLocations('/srv/files','/srv/files/state'),/State directory/)
-  assert.throws(()=>storageLocations('/srv/files','/srv/files'),/State directory/)
-  assert.equal(storageLocations('/srv/files','/srv/files-other/state').stateDirectory,'/srv/files-other/state')
-})
-
-test('reserved in-root account state cannot be listed or downloaded',async t=>{
-  const root=await mkdtemp(join(tmpdir(),'filebrowser-private-state-'))
-  const app=await createApp({stateDirectory:join(root,'.filebrowser-state')})
+for (const name of ['state', '.filebrowser-state']) test(`${name}: application state inside a target follows ordinary file permissions and scopes`,async t=>{
+  const root=await mkdtemp(join(tmpdir(),'filebrowser-state-access-'))
+  const stateDirectory=join(root,name)
+  const app=await createApp({stateDirectory})
   t.after(async()=>{await app.close();await rm(root,{recursive:true,force:true})})
   const url=await app.listen({host:'127.0.0.1',port:0})
-  const setup=await fetch(url+'/api/setup',{method:'POST',headers:{'x-filebrowser-request':'1','content-type':'application/json'},body:JSON.stringify({username:'admin',password:'private-state-test-password',siteName:'Private state',target:localTarget(root)})})
+  const headers={'x-filebrowser-request':'1','content-type':'application/json'}
+  const password='state-access-test-password'
+  const setup=await fetch(url+'/api/setup',{method:'POST',headers,body:JSON.stringify({username:'admin',password,siteName:'State access',target:localTarget(root)})})
   assert.equal(setup.status,201)
   const cookie=setup.headers.get('set-cookie').split(';')[0]
   const targetId = (await(await fetch(url+'/api/targets',{headers:{cookie}})).json())[0].id
   const listing=await(await fetch(url+`/api/targets/${targetId}/files`,{headers:{cookie}})).json()
-  assert.deepEqual(listing.entries,[])
-  for(const path of [`/targets/${targetId}/files?path=/.filebrowser-state`,`/targets/${targetId}/files/content?path=/.filebrowser-state/filebrowser.sqlite`]) {
-    assert.equal((await fetch(url+'/api'+path,{headers:{cookie}})).status,400)
+  assert.ok(listing.entries.some(entry=>entry.name===name))
+  const api=url+`/api/targets/${targetId}/files`
+  const download=await fetch(api+'/content?path='+encodeURIComponent(`/${name}/targets.key`),{headers:{cookie}})
+  assert.equal(download.status,200)
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()),await readFile(join(stateDirectory,'targets.key')))
+  const create=await fetch(api+'/directories',{method:'POST',headers:{...headers,cookie},body:JSON.stringify({directory:`/${name}`,name:'Notes'})})
+  assert.equal(create.status,200)
+  await writeFile(join(stateDirectory,'Notes','note.txt'),'ordinary state-directory file')
+  assert.equal((await fetch(api,{method:'PATCH',headers:{...headers,cookie},body:JSON.stringify({path:`/${name}/Notes/note.txt`,name:'renamed.txt'})})).status,200)
+  assert.equal((await fetch(api+'?path='+encodeURIComponent(`/${name}/Notes`),{method:'DELETE',headers:{'x-filebrowser-request':'1',cookie}})).status,200)
+  await mkdir(join(root,'Allowed'))
+  const created=await fetch(url+'/api/admin/users',{method:'POST',headers:{...headers,cookie},body:JSON.stringify({username:'member',password,role:'user',grants:[{targetId,scope:`/${name}`,permissions:READ_PERMISSIONS}]})})
+  assert.equal(created.status,201)
+  const member=await created.json()
+  const login=async()=>{
+    const response=await fetch(url+'/api/auth/login',{method:'POST',headers,body:JSON.stringify({username:'member',password})})
+    assert.equal(response.status,200)
+    return response.headers.get('set-cookie').split(';')[0]
   }
+  const memberCookie=await login()
+  assert.equal((await fetch(api+'/content?path=/filebrowser.sqlite',{method:'HEAD',headers:{cookie:memberCookie}})).status,200)
+  assert.equal((await fetch(api+'?path=/Notes',{method:'DELETE',headers:{'x-filebrowser-request':'1',cookie:memberCookie}})).status,403)
+  const changed=await fetch(url+'/api/admin/users/'+member.id,{method:'PATCH',headers:{...headers,cookie},body:JSON.stringify({username:'member',role:'user',disabled:false,grants:[{targetId,scope:'/Allowed',permissions:READ_PERMISSIONS}]})})
+  assert.equal(changed.status,200)
+  assert.equal((await fetch(api+'/content?path='+encodeURIComponent(`/${name}/targets.key`),{method:'HEAD',headers:{cookie:await login()}})).status,404)
 })
 
-test('whole-filesystem read-only setup works with nested reserved state and keeps accounts private',async t=>{
+test('whole-filesystem read-only setup accepts ordinary state paths and exposes them within granted scope',async t=>{
   const root=await mkdtemp(join(tmpdir(),'filebrowser-root-setup-'))
-  const stateDirectory=join(root,'state','.filebrowser-state')
+  const stateDirectory=join(root,'state')
   const app=await createApp({stateDirectory,setupLocalPath:'/',setupLocalReadOnly:true})
   t.after(async()=>{await app.close();await rm(root,{recursive:true,force:true})})
   const url=await app.listen({host:'127.0.0.1',port:0})
@@ -56,8 +72,21 @@ test('whole-filesystem read-only setup works with nested reserved state and keep
   assert.equal((await(await fetch(url+'/api/bootstrap',{headers:{cookie}})).json()).setupLocalReadOnly,false)
   const files=url+`/api/targets/${target.id}/files`
   const listing=await(await fetch(files+'?path='+encodeURIComponent(join(root,'state')),{headers:{cookie}})).json()
-  assert.deepEqual(listing.entries,[])
-  assert.equal((await fetch(files+'/content?path='+encodeURIComponent(join(stateDirectory,'filebrowser.sqlite')),{headers:{cookie}})).status,400)
+  assert.ok(listing.entries.some(entry=>entry.name==='filebrowser.sqlite'))
+  assert.equal((await fetch(files+'/content?path='+encodeURIComponent(join(stateDirectory,'filebrowser.sqlite')),{method:'HEAD',headers:{cookie}})).status,200)
+})
+
+test('local targets may be the application state directory',async t=>{
+  const root=await mkdtemp(join(tmpdir(),'filebrowser-state-target-'))
+  const app=await createApp({stateDirectory:root})
+  t.after(async()=>{await app.close();await rm(root,{recursive:true,force:true})})
+  const url=await app.listen({host:'127.0.0.1',port:0})
+  const headers={'x-filebrowser-request':'1','content-type':'application/json'}
+  const setup=await fetch(url+'/api/setup',{method:'POST',headers,body:JSON.stringify({username:'admin',password:'state-target-test-password',siteName:'State target',target:{...localTarget(root),readOnly:true}})})
+  assert.equal(setup.status,201,await setup.clone().text())
+  const cookie=setup.headers.get('set-cookie').split(';')[0]
+  const targetId=await firstTarget(async path=>fetch(url+'/api'+path,{headers:{cookie}}))
+  assert.equal((await fetch(url+`/api/targets/${targetId}/files/content?path=/targets.key`,{method:'HEAD',headers:{cookie}})).status,200)
 })
 
 test('runtime chunk overrides are bounded and report a feasible manifest size',()=>{

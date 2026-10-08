@@ -109,7 +109,7 @@ test('scopes, permission changes, symlinks, traversal, and last-admin protection
   assert.deepEqual(list.entries.map(e=>e.name),['visible.txt'])
   assert.equal(list.entries[0].path,'/visible.txt')
   assert.equal((await f.request(`/targets/${f.targetId}/files?path=`+encodeURIComponent('/../'))).status,400)
-  assert.equal((await f.request(`/targets/${f.targetId}/files?path=`+encodeURIComponent('/.filebrowser-uploads'))).status,400)
+  assert.equal((await f.request(`/targets/${f.targetId}/files?path=`+encodeURIComponent('/.filebrowser-uploads'))).status,404)
   assert.equal((await f.request(`/targets/${f.targetId}/files/content?path=/escape.txt`)).status,403)
   assert.equal((await f.request(`/targets/${f.targetId}/files/content?path=/private.txt`)).status,404)
   assert.equal((await f.request(`/targets/${f.targetId}/files/directories`,'POST',{directory:'/',name:'nope'})).status,403)
@@ -136,7 +136,7 @@ test('folder upload directory creation reuses directories safely and retains str
   const conflict = await f.request(endpoint, 'POST', { directory: '/Project', name: 'unrelated.txt', existOk: true })
   assert.equal(conflict.status, 409); assert.equal((await conflict.json()).code, 'DESTINATION_EXISTS')
   assert.equal(await readFile(join(f.options.storageRoot, 'Project', 'unrelated.txt'), 'utf8'), 'keep this')
-  for (const name of ['../escape', '.filebrowser-state', 'bad\\name']) assert.equal((await f.request(endpoint, 'POST', { ...body, name })).status, 400)
+  for (const name of ['../escape', '..', 'bad\\name']) assert.equal((await f.request(endpoint, 'POST', { ...body, name })).status, 400)
   await mkdir(join(f.root, 'outside'))
   await symlink(join(f.root, 'outside'), join(f.options.storageRoot, 'escape'))
   assert.equal((await f.request(endpoint, 'POST', { ...body, name: 'escape' })).status, 403)
@@ -157,7 +157,7 @@ test('folder deletion recursively removes nested files and empty folders while p
   assert.equal((await f.request(`/targets/${f.targetId}/files?path=/`, 'DELETE')).status, 400)
 })
 
-test('recursive deletion preserves unfinished uploads, private state, and symlink destinations', async t => {
+test('recursive deletion removes dot directories, preserves unfinished uploads, and never follows symlinks', async t => {
   const f = await fixture(t), root = f.options.storageRoot, endpoint = `/targets/${f.targetId}/files?path=/Project`
   await mkdir(join(root, 'Project', 'Nested'), { recursive: true })
   await writeFile(join(root, 'Project', 'keep.txt'), 'untouched while upload is retained')
@@ -172,8 +172,8 @@ test('recursive deletion preserves unfinished uploads, private state, and symlin
   await symlink(join(f.root, 'outside.txt'), join(root, 'Project', 'escape'))
   const protectedFolder = await f.request(endpoint, 'DELETE')
   assert.equal(protectedFolder.status, 409)
-  assert.match((await protectedFolder.json()).message, /protected or unsupported/)
-  assert.equal(await readFile(join(root, 'Project', '.filebrowser-private', 'secret'), 'utf8'), 'private state')
+  assert.match((await protectedFolder.json()).message, /unsupported/)
+  await assert.rejects(stat(join(root,'Project','.filebrowser-private')),{code:'ENOENT'})
   assert.equal(await readFile(join(f.root, 'outside.txt'), 'utf8'), 'outside the target')
 })
 
@@ -258,7 +258,7 @@ test('unsupported native filenames do not prevent browsing addressable files',as
   await mkdir(join(f.options.storageRoot,'addressable'))
   const response=await f.request(`/targets/${f.targetId}/files`)
   assert.equal(response.status,200,await response.clone().text())
-  assert.deepEqual((await response.json()).entries.map(entry=>entry.name),['addressable','visible.txt'])
+  assert.deepEqual((await response.json()).entries.map(entry=>entry.name),['.filebrowser-uploads','addressable','.filebrowser-lock','.filebrowser-lock-journal','visible.txt'])
   assert.equal(await(await f.request(`/targets/${f.targetId}/files/content?path=/visible.txt`)).text(),'fixture')
   assert.equal((await f.request(`/targets/${f.targetId}/files/content?path=`+encodeURIComponent('/notes\\draft.txt'))).status,400)
 })

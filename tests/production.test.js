@@ -35,7 +35,7 @@ test('relocated production bundle serves setup, authenticated files, static asse
   assert.equal(setup.status,201,await setup.clone().text())
   const cookie=setup.headers.get('set-cookie').split(';')[0]
   const targetId = (await(await fetch(address+'/api/targets',{headers:{cookie}})).json())[0].id
-  assert.deepEqual((await(await fetch(address+`/api/targets/${targetId}/files`,{headers:{cookie}})).json()).entries,[])
+  assert.deepEqual((await(await fetch(address+`/api/targets/${targetId}/files`,{headers:{cookie}})).json()).entries.map(entry=>entry.name).sort(),['.filebrowser-lock','.filebrowser-lock-journal','.filebrowser-uploads'])
   child.kill('SIGTERM')
   const [code,signal]=await closed
   assert.equal(code,0,output);assert.equal(signal,null)

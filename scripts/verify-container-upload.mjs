@@ -84,7 +84,7 @@ try {
   assert.equal((await api('/setup', { username: 'second', password: 'container-verification-password', siteName: 'No' })).status, 409)
   assert.equal((await api(`/targets/${targetId}/files`, undefined, undefined, url, '')).status, 401)
   check('one-time setup and anonymous access denial')
-  for (const name of ['../escape', '.filebrowser-secret', 'bad/name', 'bad\\name']) {
+  for (const name of ['../escape', '..', 'bad/name', 'bad\\name']) {
     assert.equal((await api('/uploads', { targetId, name, directory: '/', size: 0, chunkSize: 102400, lastModified: 0, hashes: [] })).status, 400)
   }
   assert.equal((await api('/uploads', { targetId, name: 'invalid.bin', directory: '/', size: 5, chunkSize: 102400, lastModified: 0, hashes: [] })).status, 400)
