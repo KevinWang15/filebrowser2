@@ -88,7 +88,6 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Device/inode checks for upload ownership and native directory exports; unavailable mounted staging retains its identity instead of creating replacement data on another filesystem.
 - Exclusive application locks for writable local roots, released by the OS after process termination.
 - Explicit whole-host browsing through a local target rooted at `/`, subject to OS permissions and configured user grants.
-- Local targets may contain application state, be inside its directory, or use the state directory itself; state files and `.filebrowser-*` names follow ordinary scopes and permissions.
 
 ## S3-compatible storage
 
@@ -152,7 +151,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Create folders in the current target and virtual directory.
 - Rename files and filesystem directories within their parent directory; S3 supports individual object rename only.
 - Rename dialog selects the basename while preserving the extension for convenient editing.
-- Create-folder and rename dialogs reject reserved names, slashes, control characters, whitespace-only names, and names exceeding 255 UTF-8 bytes before submission, using the same filename rules as the API.
+- Create-folder and rename dialogs reject `.` and `..`, slashes, control characters, whitespace-only names, and names exceeding 255 UTF-8 bytes before submission, using the same filename rules as the API.
 - Delete files and folders recursively across all target types, including nested files and empty directories; multiple selected items are processed individually with progress and per-item failure messages.
 - Recursive deletion rechecks delete access and upload/share protections during traversal, preserves unsupported entries, and refreshes the listing after partial failures.
 - Confirmation dialogs for permanent deletion and prevention of renaming/deleting the user's virtual root.
@@ -182,7 +181,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Streamed uncompressed TAR downloads of the current folder or a selected folder, preserving empty directories and Unicode names.
 - One TAR for mixed file/folder selections or multiple files, with duplicate selections and selected descendants deduplicated.
 - Relative archive paths preserve separate files with identical basenames; a single folder archive contains its children relative to that folder.
-- Archives include application state and dot directories within the granted scope, excluding symlinks, special files, unsupported names, and managed pending upload destinations while retaining ordinary `.uploading` names.
+- Archives retain ordinary dotfiles and `.uploading` names, excluding symlinks, special files, unsupported names, and managed pending upload destinations.
 - No completed temporary archive, full-tree manifest, or browser-side archive buffering; cancellation closes source streams and releases archive resources.
 - Two-minute, single-use archive tickets tied to the authenticated user, target, current download permission, and unchanged scope; HEAD probes do not consume tickets.
 - Archive selections limited to 1,000 items and 64 KiB of serialized paths, with budgets of eight pending tickets/two active streams per user and 64 tickets/eight streams application-wide.
@@ -196,7 +195,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Each folder-upload file becomes an independent transfer with its own destination, checksum manifest, progress, pause/resume, and cancellation; identical basenames in different folders remain separate files.
 - Folder drag-and-drop accepts mixed files and directories and reads every directory batch, including folders with more than 100 entries.
 - The upload dialog shows directory-scanning and error states; closing the dialog or navigating away cancels its scan, and unreadable selections fail before any partial selection is queued.
-- All selected relative paths are validated before queueing, rejecting traversal, reserved names, unsupported components, mismatched filenames, and destination paths longer than 4,096 characters.
+- All selected relative paths are validated before queueing, rejecting traversal, unsupported components, mismatched filenames, and destination paths longer than 4,096 characters.
 - Parent folders are created as needed within the user's scope and existing directories are reused; conflicting files are reported and existing files are preserved.
 - Empty directories are omitted; canceling a transfer removes its owned upload data while retaining any parent folders already created.
 - Browser upload queue processes one file at a time while allowing one, two, or four parallel connections inside the current chunk.
@@ -259,7 +258,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Member visibility limited to their own share connection details, with scoped paths and copyable SMB addresses.
 - Configurable public SMB hostname/IP, with the web hostname used by the UI by default.
 - Share states and explanations for active, pending, disabled, blocked, and unavailable service/access conditions.
-- Required SMB encryption/signing and NTLMv2 authentication; guest access, SMB1, and symlink following are blocked. Application state and `.filebrowser-*` paths are accessible within the configured share and OS permissions.
+- Required SMB encryption/signing and NTLMv2 authentication; guest access, SMB1, and symlink following are blocked.
 - All `.uploading` names hidden and inaccessible through SMB, including ordinary files with that suffix.
 - Device/inode checks for mounted roots and shared directories; changed/missing directories are blocked individually while unaffected shares remain usable.
 - Physical read-only file mounts and reproduction of the application's UID, GID, and supplementary groups for filesystem reads.
@@ -303,7 +302,6 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Path normalization rejects traversal segments, backslashes, and control characters.
 - Shared browser/API filename validation enforces addressable names up to 255 UTF-8 bytes, including multibyte Unicode names; unsupported native names are skipped instead of breaking listings or archives.
 - Local and remote filesystem path checks reject symlinks and special files; local file opens use no-follow semantics.
-- State directories, databases, and encryption keys have restrictive OS file permissions; administrators control exposure through storage roots, user grants, and shares without automatic state exclusions.
 - Security headers for content-type sniffing, framing, referrers, and no-store API caching; file/preview responses have a restrictive sandbox Content Security Policy.
 - Exclusive SQLite process lock for application state and additional locks for writable local storage roots.
 - Download/archive concurrency budgets, unfinished-upload limits, and bounded caches/stream buffers to control resource use.
@@ -338,6 +336,6 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Browser workflows cover setup, scoped members, file actions, previews, native downloads/TARs, worker hashing, resume, target switching, mobile layout, and appearance persistence across reload.
 - Folder-upload browser checks exercise the native folder picker, nested paths, duplicate basenames, Unicode names, empty files, directory reuse, per-file reload recovery, drop destinations, ancestor refresh, permission restrictions, and recursive deletion with partial-failure reporting.
 - Directory-intake tests cover listings spanning multiple browser batches, mixed file/folder drops, invalid paths, unreadable entries, and scan cancellation.
-- File-rule checks cover UTF-8 filename limits, reserved names, managed upload suffixes, and text-preview boundaries.
+- File-rule checks cover UTF-8 filename limits, `.` and `..`, managed upload suffixes, and text-preview boundaries.
 - Portable-runtime relocation/boot tests and source-package checks for notices, static assets, clean-tree requirements, and private/generated file exclusion.
 - Large-transfer checks include 1 GiB payloads and 200 GiB manifests; full 200 GB payloads and physical power-loss behavior have not been verified.
