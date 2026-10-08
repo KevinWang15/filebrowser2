@@ -1,14 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { IconAlertTriangle, IconFolderPlus, IconPencil, IconTrash } from '@tabler/icons-react'
 import type { FileEntry } from '@/shared/types'
+import { isValidFileName, MAX_NAME_BYTES } from '@/shared/file-rules'
 import { targetFiles } from '../../lib/targets'
 import { api, errorMessage } from '../../api'
 import { FileIcon } from '../../components/FileIcon'
 import { Modal } from '../../components/Modal'
 import { Spinner } from '../../components/ui'
 import { formatBytes, plural } from '../../lib/format'
-
-const INVALID = /[/\\\0]/
 
 /** Create-folder and rename dialog. Rename preselects the name without its extension. */
 export function NameDialog({ targetId, mode, entry, directory, onClose, onDone }: {
@@ -18,10 +17,10 @@ export function NameDialog({ targetId, mode, entry, directory, onClose, onDone }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const trimmed = name.trim()
-  const invalid = INVALID.test(name) ? 'Names cannot contain slashes.' : trimmed === '.' || trimmed === '..' ? 'This name is reserved.' : ''
+  const invalid = trimmed && !isValidFileName(trimmed) ? `Use a valid name without slashes (up to ${MAX_NAME_BYTES} UTF-8 bytes).` : ''
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (invalid) return
+    if (!trimmed || invalid) return
     setBusy(true); setError('')
     try {
       if (mode === 'folder') await api(targetFiles(targetId) + '/directories', { method: 'POST', body: { directory, name: trimmed } })
@@ -37,7 +36,7 @@ export function NameDialog({ targetId, mode, entry, directory, onClose, onDone }
       <div className="modal-body">
         <div className="field">
           <label htmlFor="name-input">{label}</label>
-          <input id="name-input" className="input" value={name} data-autofocus required maxLength={255} spellCheck={false} placeholder={mode === 'folder' ? 'Untitled folder' : ''}
+          <input id="name-input" className="input" value={name} data-autofocus required maxLength={MAX_NAME_BYTES} spellCheck={false} placeholder={mode === 'folder' ? 'Untitled folder' : ''}
             aria-invalid={!!invalid || !!error}
             onChange={event => setName(event.target.value)}
             onFocus={event => {

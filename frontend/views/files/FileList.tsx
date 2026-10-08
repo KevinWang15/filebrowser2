@@ -19,7 +19,7 @@ interface ListProps {
 }
 
 const RASTER = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico'])
-const canThumb = (entry: FileEntry, user: TargetAccess) => entry.kind === 'file' && !entry.uploading && can(user, 'download') && RASTER.has(extension(entry.name)) && entry.size <= 8 * 1024 * 1024
+const canThumb = (entry: FileEntry, user: TargetAccess) => entry.kind === 'file' && !entry.uploading && can(user, 'download') && RASTER.has(extension(entry)) && entry.size <= 8 * 1024 * 1024
 
 function useFolderDrop(entry: FileEntry, user: TargetAccess, onDropInto: ListProps['onDropInto']) {
   const [over, setOver] = useState(false)

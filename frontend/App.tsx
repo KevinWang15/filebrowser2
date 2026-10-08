@@ -43,7 +43,7 @@ function useAppearance() {
 export default function App() {
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null)
   const [error, setError] = useState('')
-  useAppearance()
+  const appearance = useAppearance()
   const refresh = useCallback(async () => {
     try { setBootstrap(await api<Bootstrap>('/bootstrap')); setError('') } catch (error) { setError(errorMessage(error)) }
   }, [])
@@ -59,12 +59,12 @@ export default function App() {
       : <div className="splash-loading"><Spinner /><span>Opening workspace…</span></div>}
   </div>
   if (bootstrap.needsSetup || !bootstrap.user) return <><AuthScreen setup={bootstrap.needsSetup} siteName={bootstrap.siteName} setupLocalPath={bootstrap.setupLocalPath} setupLocalReadOnly={bootstrap.setupLocalReadOnly} onDone={refresh} /><Tooltips /></>
-  return <Workspace key={bootstrap.user.id} bootstrap={bootstrap} user={bootstrap.user} onAuthChanged={refresh} />
+  return <Workspace key={bootstrap.user.id} bootstrap={bootstrap} user={bootstrap.user} appearance={appearance} onAuthChanged={refresh} />
 }
 
-function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; user: User; onAuthChanged: () => Promise<void> }) {
+function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: Bootstrap; user: User; appearance: ReturnType<typeof useAppearance>; onAuthChanged: () => Promise<void> }) {
   const [route, navigate] = useRoute()
-  const { theme, setTheme, density, setDensity } = useAppearance()
+  const { theme, setTheme, density, setDensity } = appearance
   const [connections, setConnections] = usePref('connections', '1', CONNECTIONS)
   const [engine] = useState(() => new UploadEngine(bootstrap.upload))
   const [transfers, setTransfers] = useState<Transfer[]>([])

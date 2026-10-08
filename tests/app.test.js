@@ -205,6 +205,20 @@ test('HEAD downloads return file and range metadata without reading the payload'
   assert.equal(opened.mock.callCount(),1)
 })
 
+test('text previews enforce the shared type and size limits while ordinary downloads remain available', async t => {
+  const f = await fixture(t), base = `/targets/${f.targetId}/files/content`
+  const fixtures = [['notes.TXT', 1024 * 1024, 200], ['large.txt', 1024 * 1024 + 1, 400], ['program.exe', 10, 400], ['notes.txt.uploading', 10, 400]]
+  for (const [name, size, expected] of fixtures) {
+    await writeFile(join(f.options.storageRoot, name), Buffer.alloc(size, 0x61))
+    const preview = await f.request(base + '?preview=1&path=' + encodeURIComponent('/' + name), 'HEAD')
+    assert.equal(preview.status, expected, name)
+    if (expected === 200) assert.equal(preview.headers.get('content-type'), 'text/plain; charset=utf-8')
+    const download = await f.request(base + '?path=' + encodeURIComponent('/' + name), 'HEAD')
+    assert.equal(download.status, 200, name)
+    assert.equal(download.headers.get('content-length'), String(size))
+  }
+})
+
 test('multi-connection chunks verify, append once, survive lost acknowledgments, and publish without a copy',async t=>{
   const f=await fixture(t)
   const data=Buffer.from('A robust resumable upload across four independent connections.'.repeat(2000))

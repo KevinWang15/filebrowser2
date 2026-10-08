@@ -35,6 +35,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Independent member grants for each target, with one existing home directory and its own permissions per grant.
 - Scoped virtual roots: each assigned home directory appears as `/`, and file operations resolve within that scope.
 - Six independent permissions: read/browse, download, upload, create folders, rename, and delete.
+- Folder uploads require both upload and create-folder access; file-only uploads require upload access, and directory creation/reuse does not require browse access.
 - Separate preview permissions: text previews require read access; image previews and thumbnails require download access.
 - Read only overrides all write permissions for members and administrators while keeping browsing and downloads available.
 - Target visibility limited to enabled targets the current user can access; accounts may have no target grants.
@@ -133,7 +134,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Case-insensitive filename filtering within the current folder, with match counts and a clear-filter action.
 - Breadcrumb hierarchy from My files to the target and folder ancestors, parent navigation back to the target list, and browser history through hash routes.
 - Direct folder navigation by typing a `/path` in the command palette.
-- Manual refresh and automatic listing refresh when local browser transfers create pending entries, finish, or cancel.
+- Manual refresh and automatic listing refresh when browser transfers create pending entries, finish, or cancel, including ancestor listings when nested uploads create child folders.
 - Protection against stale listing responses after navigation or a newer refresh.
 - Checkbox, single-click, Ctrl/Command-click, Shift-range, keyboard, and select-all selection; unfinished uploads are excluded from bulk selection.
 - Selection summaries for item count and file bytes, plus folder/file/byte/upload counts for the current folder.
@@ -143,12 +144,14 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Virtualized list rows for directories larger than 250 entries and lazy raster thumbnails in grid view.
 - Loading skeletons, empty-folder and no-match states, and retry/root-navigation actions for failed listings.
 - Ordinary dotfiles and supported Unicode filenames, including completed files whose names end in `.uploading`.
+- File types and icons distinguish server-managed unfinished uploads from ordinary completed files with a `.uploading` suffix.
 
 ## File and folder operations
 
 - Create folders in the current target and virtual directory.
 - Rename files and filesystem directories within their parent directory; S3 supports individual object rename only.
 - Rename dialog selects the basename while preserving the extension for convenient editing.
+- Create-folder and rename dialogs reject reserved names, slashes, control characters, whitespace-only names, and names exceeding 255 UTF-8 bytes before submission, using the same filename rules as the API.
 - Delete files and empty folders, including multiple selected items processed individually with progress and per-item failure messages.
 - Confirmation dialogs for permanent deletion and prevention of renaming/deleting the user's virtual root.
 - Destination conflict checks that preserve existing names and report busy or conflicting operations.
@@ -159,7 +162,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 
 ## File previews and metadata
 
-- Plain-text preview for TXT, MD, JSON, CSV, LOG, YAML/YML, TOML, INI, TS, JS, CSS/SCSS, and XML files up to 1 MiB.
+- Plain-text preview for TXT, MD, JSON, CSV, LOG, YAML/YML, TOML, INI, TS, JS, CSS/SCSS, and XML files up to 1 MiB, with identical format and size rules in the browser and API.
 - Text rendered as literal text through a sandboxed endpoint; full viewer output is limited to 4,000 lines, with a notice for additional lines.
 - Image preview for PNG, JPEG, GIF, WebP, AVIF, BMP, ICO, and SVG files up to 25 MiB in the UI, subject to browser decoding support.
 - Lazy grid thumbnails for supported raster formats up to 8 MiB, with file-icon fallback on failure.
@@ -187,8 +190,13 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 ## Upload intake and integrity
 
 - Multi-file picker and drag-and-drop into the current folder, upload dialog, or an individual folder row/card.
-- Folder picker and recursive folder drag-and-drop preserve the selected root and nested paths, queueing each file as an independent resumable transfer; empty directories are omitted.
-- Folder uploads require upload and create-folder permissions, reuse existing directories, and preserve unrelated files and conflicting destinations.
+- Choose-folder picker in supporting browsers and recursive folder drag-and-drop preserve the selected root and nested paths under the destination folder.
+- Each folder-upload file becomes an independent transfer with its own destination, checksum manifest, progress, pause/resume, and cancellation; identical basenames in different folders remain separate files.
+- Folder drag-and-drop accepts mixed files and directories and reads every directory batch, including folders with more than 100 entries.
+- The upload dialog shows directory-scanning and error states; closing the dialog or navigating away cancels its scan, and unreadable selections fail before any partial selection is queued.
+- All selected relative paths are validated before queueing, rejecting traversal, reserved names, unsupported components, mismatched filenames, and destination paths longer than 4,096 characters.
+- Parent folders are created as needed within the user's scope and existing directories are reused; conflicting files are reported and existing files are preserved.
+- Empty directories are omitted; canceling a transfer removes its owned upload data while retaining any parent folders already created.
 - Browser upload queue processes one file at a time while allowing one, two, or four parallel connections inside the current chunk.
 - Default 100 MiB chunks, configurable from 64 KiB to 100 MiB, with a general ceiling of 1 TiB and 12,000 chunks subject to target limits.
 - Frontend size/multipart checks before hashing and independent server-side manifest validation.
@@ -210,6 +218,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - SQLite checkpoints advance only after storage commit verification and persist before acknowledgment.
 - Repeated earlier chunk commits and lost acknowledgments return saved progress without duplicating bytes.
 - Browser reload recovery lists retained sessions; selecting the original file verifies size and the full manifest before resuming.
+- Started folder-upload sessions retain each file's nested destination across reload and resume by selecting that file's original source; files queued only in browser memory must be selected again.
 - Existing sessions retain their original chunk size after runtime configuration changes.
 - Local startup recovery restores missing owned pending aliases, truncates unacknowledged tails, and reconciles interrupted publication/cancellation.
 - Remote recovery runs on resume, completion, or cancellation so an offline remote does not block unrelated targets at startup.
@@ -290,7 +299,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Authenticated file API with same-origin session cookies; write requests require `X-Filebrowser-Request: 1` and origin verification.
 - Strict input schemas, UUID/session validation, JSON body limits, bounded manifests, and binary upload length validation.
 - Path normalization rejects traversal segments, backslashes, control characters, and case-insensitive reserved `.filebrowser-*` components.
-- Filename validation enforces addressable names up to 255 UTF-8 bytes; unsupported native names are skipped instead of breaking listings or archives.
+- Shared browser/API filename validation enforces addressable names up to 255 UTF-8 bytes, including multibyte Unicode names; unsupported native names are skipped instead of breaking listings or archives.
 - Local and remote filesystem path checks reject symlinks and special files; local file opens use no-follow semantics.
 - Private application state kept outside visible local targets or inside reserved namespaces, with private state directories/database/key file permissions.
 - Security headers for content-type sniffing, framing, referrers, and no-store API caching; file/preview responses have a restrictive sandbox Content Security Policy.
@@ -324,6 +333,9 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Mounted-filesystem fixtures verify destination-device staging and recovery; container checks exercise disk exhaustion, bounded staging, and large sequential transfers.
 - Native MinIO, FTP, certificate-verified FTPS, and OpenSSH fixtures for remote CRUD, range reads, archives, uploads, reconnection, credential repair, and crash recovery.
 - Native SMB fixtures verify desktop access, read-only enforcement, revocation, restart reconstruction, lease expiry, delayed policies, and control-publication failures.
-- Browser workflows cover setup, scoped members, file actions, previews, native downloads/TARs, worker hashing, resume, target switching, and mobile layout.
+- Browser workflows cover setup, scoped members, file actions, previews, native downloads/TARs, worker hashing, resume, target switching, mobile layout, and appearance persistence across reload.
+- Folder-upload browser checks exercise the native folder picker, nested paths, duplicate basenames, Unicode names, empty files, directory reuse, per-file reload recovery, drop destinations, ancestor refresh, and permission restrictions.
+- Directory-intake tests cover listings spanning multiple browser batches, mixed file/folder drops, invalid paths, unreadable entries, and scan cancellation.
+- File-rule checks cover UTF-8 filename limits, reserved names, managed upload suffixes, and text-preview boundaries.
 - Portable-runtime relocation/boot tests and source-package checks for notices, static assets, clean-tree requirements, and private/generated file exclusion.
 - Large-transfer checks include 1 GiB payloads and 200 GiB manifests; full 200 GB payloads and physical power-loss behavior have not been verified.

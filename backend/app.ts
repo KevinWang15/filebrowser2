@@ -7,6 +7,7 @@ import staticFiles from '@fastify/static'
 import { z } from 'zod'
 import { MAX_CHUNKS, type SystemInfo, type TargetGrant, type TargetAccess, type Permission } from '@/shared/types'
 import { VERSION } from '@/shared/version'
+import { MAX_NAME_BYTES, MAX_PATH_LENGTH, supportsTextPreview } from '@/shared/file-rules'
 import { uploadConfig } from './config'
 import { Auth, hashPassword, verifyPassword, requireUser, requireAdmin } from './auth'
 import { Store } from './store'
@@ -21,7 +22,7 @@ import { shareNameSchema } from './shares/control'
 const passwordSchema = z.string().min(12, 'Use at least 12 characters for your password').max(128)
 const usernameSchema = z.string().trim().min(2).max(40).regex(/^[a-zA-Z0-9_.-]+$/, 'Use letters, numbers, dots, underscores, or hyphens')
 const permissionsSchema = z.object({ read: z.boolean(), download: z.boolean(), upload: z.boolean(), create: z.boolean(), rename: z.boolean(), delete: z.boolean() }).strict()
-const grantSchema = z.object({ targetId: z.string().uuid(), scope: z.string().max(4096), permissions: permissionsSchema }).strict()
+const grantSchema = z.object({ targetId: z.string().uuid(), scope: z.string().max(MAX_PATH_LENGTH), permissions: permissionsSchema }).strict()
 const userSchema = z.object({ username: usernameSchema, password: passwordSchema, role: z.enum(['admin','user']), grants: z.array(grantSchema).max(100), disabled: z.boolean().default(false) }).strict()
 const idSchema = z.string().uuid()
 const indexSchema = z.coerce.number().int().min(0).max(MAX_CHUNKS)
@@ -35,7 +36,7 @@ interface AppOptions {
 
 export async function createApp(options: AppOptions = {}) {
   const limits = uploadConfig(options.chunkSize, options.maxFileSize)
-  const manifestSchema = z.object({ targetId: idSchema, name: z.string().min(1).max(255), directory: z.string().max(4096), size: z.number().int().min(0).max(limits.maxFileSize),
+  const manifestSchema = z.object({ targetId: idSchema, name: z.string().min(1).max(MAX_NAME_BYTES), directory: z.string().max(MAX_PATH_LENGTH), size: z.number().int().min(0).max(limits.maxFileSize),
     lastModified: z.number().int().min(0), chunkSize: z.literal(limits.chunkSize), hashes: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(MAX_CHUNKS) }).strict()
     .refine(m => m.hashes.length === Math.ceil(m.size / limits.chunkSize), 'Chunk list does not match the file size')
   const stateDirectory = resolve(options.stateDirectory ?? process.env.FB_STATE_DIR ?? './.filebrowser-state')
@@ -224,8 +225,7 @@ export async function createApp(options: AppOptions = {}) {
     const entry = await storage.stat(path)
     authorize()
     if (entry.kind !== 'file') throw new HttpError(400, 'Only files can be downloaded')
-    const safeText = /\.(txt|md|json|csv|log|yaml|yml|toml|ini|ts|js|css|scss|xml)$/i.test(entry.name)
-    if (request.query.preview === '1' && (!safeText || entry.size > 1024 * 1024)) throw new HttpError(400, 'Preview supports text files up to 1 MiB')
+    if (request.query.preview === '1' && !supportsTextPreview(entry)) throw new HttpError(400, 'Preview supports text files up to 1 MiB')
     reply.header('Accept-Ranges', 'bytes').header('Content-Type', request.query.preview === '1' ? 'text/plain; charset=utf-8' : 'application/octet-stream')
     reply.header('Content-Disposition', `${request.query.preview === '1' ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(entry.name).replace(/'/g,'%27')}`)
     reply.header('Content-Security-Policy', "default-src 'none'; sandbox")
@@ -265,7 +265,7 @@ export async function createApp(options: AppOptions = {}) {
   app.post<{ Params: { targetId: string } }>('/api/targets/:targetId/files/archive-tickets', async request => {
     const targetId = idSchema.parse(request.params.targetId)
     const user = targets.access(requireUser(request), targetId)
-    const { paths } = z.object({ paths: z.array(z.string().max(4096)).min(1).max(1000) }).strict().parse(request.body)
+    const { paths } = z.object({ paths: z.array(z.string().max(MAX_PATH_LENGTH)).min(1).max(1000) }).strict().parse(request.body)
     const ticket = await (await archiveFor(targetId)).ticket(user, paths)
     targetGuard(request, user, 'download')()
     return ticket
@@ -381,7 +381,7 @@ export async function createApp(options: AppOptions = {}) {
   app.get('/api/shares', async request => { const result = await shares.list(requireUser(request)); requireUser(request); return result })
   app.post('/api/admin/shares', async (request, reply) => {
     const actor = requireAdmin(request)
-    const body = z.object({ targetId: idSchema, protocol: z.string().max(20).default('smb'), name: shareNameSchema, path: z.string().max(4096), ownerId: idSchema }).strict().parse(request.body)
+    const body = z.object({ targetId: idSchema, protocol: z.string().max(20).default('smb'), name: shareNameSchema, path: z.string().max(MAX_PATH_LENGTH), ownerId: idSchema }).strict().parse(request.body)
     return reply.code(201).send(await shares.create(actor, body, () => { requireAdmin(request) }))
   })
   app.patch<{ Params: { id: string } }>('/api/admin/shares/:id', async request => {

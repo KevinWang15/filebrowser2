@@ -21,8 +21,8 @@ const BY_CATEGORY: Record<FileCategory, Icon> = {
   text: IconFileText, font: IconFileTypography, other: IconFile,
 }
 
-export function FileIcon({ entry, size = 18 }: { entry: Pick<FileEntry, 'name' | 'kind'>; size?: number }) {
+export function FileIcon({ entry, size = 18 }: { entry: Pick<FileEntry, 'name' | 'kind' | 'uploading'>; size?: number }) {
   const { category } = fileType(entry)
-  const Glyph = entry.kind === 'directory' ? IconFolderFilled : BY_EXTENSION[extension(entry.name)] ?? BY_CATEGORY[category]
+  const Glyph = entry.kind === 'directory' ? IconFolderFilled : BY_EXTENSION[extension(entry)] ?? BY_CATEGORY[category]
   return <span className={`file-icon tone-${category}`} aria-hidden="true"><Glyph size={size} stroke={1.6} /></span>
 }

@@ -1,4 +1,5 @@
 import type { FileEntry } from '@/shared/types'
+import { supportsTextPreview } from '@/shared/file-rules'
 
 export function formatBytes(value: number) {
   if (!value) return '0 B'
@@ -57,28 +58,25 @@ register('code', '% stylesheet', 'css scss sass less')
 register('code', 'HTML document', 'html htm')
 register('font', '% font', 'ttf otf woff woff2')
 
-/** Lowercase extension of a name, ignoring the pending-upload suffix. */
-export function extension(name: string) {
-  const base = name.endsWith('.uploading') ? name.slice(0, -'.uploading'.length) : name
+/** Only managed pending files have a synthetic upload suffix. */
+export function extension({ name, uploading }: Pick<FileEntry, 'name' | 'uploading'>) {
+  const base = uploading && name.endsWith('.uploading') ? name.slice(0, -'.uploading'.length) : name
   const index = base.lastIndexOf('.')
   return index > 0 ? base.slice(index + 1).toLowerCase() : ''
 }
-export function fileType(entry: Pick<FileEntry, 'name' | 'kind'>): { label: string; category: FileCategory } {
+export function fileType(entry: Pick<FileEntry, 'name' | 'kind' | 'uploading'>): { label: string; category: FileCategory } {
   if (entry.kind === 'directory') return { label: 'Folder', category: 'folder' }
-  const ext = extension(entry.name)
+  const ext = extension(entry)
   const known = TYPES[ext]
   if (known) return { label: known[0], category: known[1] }
   return { label: ext ? `${ext.toUpperCase()} file` : 'File', category: 'other' }
 }
 
-// Mirrors the server's preview allowlist so the UI only offers previews that can succeed.
-const TEXT_PREVIEW = /\.(txt|md|json|csv|log|yaml|yml|toml|ini|ts|js|css|scss|xml)$/i
 const IMAGE_PREVIEW = /\.(png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i
-const MAX_TEXT_PREVIEW = 1024 * 1024
 const MAX_IMAGE_PREVIEW = 25 * 1024 * 1024
 export const previewKind = (entry: FileEntry): 'text' | 'image' | null =>
   entry.kind !== 'file' || entry.uploading ? null
-    : TEXT_PREVIEW.test(entry.name) && entry.size <= MAX_TEXT_PREVIEW ? 'text'
+    : supportsTextPreview(entry) ? 'text'
       : IMAGE_PREVIEW.test(entry.name) && entry.size <= MAX_IMAGE_PREVIEW ? 'image' : null
 
 export const contentUrl = (targetId: string, path: string, preview = false) => `/api/targets/${encodeURIComponent(targetId)}/files/content?${preview ? 'preview=1&' : ''}path=${encodeURIComponent(path)}`

@@ -1,3 +1,5 @@
+import { isValidFileName, MAX_PATH_LENGTH } from '@/shared/file-rules'
+
 export interface UploadSource { file: File; relativePath: string }
 export interface UploadFolder { directory: string; name: string }
 
@@ -7,16 +9,14 @@ export function selectedFiles(files: FileList | File[]): UploadSource[] {
 
 export function uploadDestination(source: UploadSource, directory: string) {
   const parts = source.relativePath.split('/')
-  const valid = (name: string) => name.trim() && name !== '.' && name !== '..' && !name.toLowerCase().startsWith('.filebrowser-') &&
-    ![...name].some(char => char === '\\' || char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127) && new TextEncoder().encode(name).length <= 255
-  if (!parts.every(valid) || parts.at(-1) !== source.file.name) throw new Error(`Invalid upload path: ${source.relativePath}`)
+  if (!parts.every(isValidFileName) || parts.at(-1) !== source.file.name) throw new Error(`Invalid upload path: ${source.relativePath}`)
   let parent = directory === '/' ? '' : directory
   const folders: UploadFolder[] = []
   for (const name of parts.slice(0, -1)) {
     folders.push({ directory: parent || '/', name })
     parent += '/' + name
   }
-  if ((parent + '/' + source.file.name).length > 4096) throw new Error(`Upload path is too long: ${source.relativePath}`)
+  if ((parent + '/' + source.file.name).length > MAX_PATH_LENGTH) throw new Error(`Upload path is too long: ${source.relativePath}`)
   return { file: source.file, directory: parent || '/', folders }
 }
 

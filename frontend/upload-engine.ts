@@ -36,8 +36,8 @@ export class UploadEngine {
   private controllers = new Map<string, AbortController>()
   private manifests = new Map<string, { file: File; hashes: string[]; manifestHash: string }>()
   private folders = new Map<string, UploadFolder[]>()
-  connections: 1 | 2 | 4 = 1
-  onComplete: (task: Transfer) => void = () => {}
+  private connections: 1 | 2 | 4 = 1
+  private onComplete: (task: Transfer) => void = () => {}
   activate() { this.disposed = false }
   setCompleteHandler(handler: (task: Transfer) => void) { this.onComplete = handler }
   setConnections(connections: 1 | 2 | 4) { this.connections = connections }
