@@ -12,7 +12,8 @@ test('mounted filesystems retain sequential-upload durability', { skip: !process
   const storageRoot = process.env.FB_TEST_STORAGE_ROOT
   const mount = process.env.FB_TEST_MOUNT_PATH
   assert.ok(storageRoot && mount)
-  assert.notEqual((await lstat(storageRoot)).dev, (await lstat(mount)).dev, 'fixture must use two real filesystems')
+  if (process.env.FB_TEST_BIND_MOUNT === 'true') assert.equal((await lstat(storageRoot)).dev, (await lstat(mount)).dev, 'bind fixture must share a device across distinct mounts')
+  else assert.notEqual((await lstat(storageRoot)).dev, (await lstat(mount)).dev, 'fixture must use two real filesystems')
   const directory = '/' + relative(storageRoot, mount)
   const stateDirectory = await mkdtemp(join(tmpdir(), 'filebrowser-mounted-state-'))
   const chunkSize = 65536

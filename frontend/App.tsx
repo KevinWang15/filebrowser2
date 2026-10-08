@@ -17,6 +17,7 @@ import { NotifyContext } from './lib/notify'
 import { isRunning, STATE_LABELS, transferProgress } from './lib/transfers'
 import { targetAccess } from './lib/targets'
 import { TargetsView } from './views/TargetsView'
+import { TargetListView } from './views/TargetListView'
 import { can } from './lib/permissions'
 import { applyAppearance, DENSITIES, THEMES, usePref, type Density, type Theme } from './lib/prefs'
 import { useRoute, type View } from './lib/route'
@@ -73,12 +74,11 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
   const [folderRequest, setFolderRequest] = useState(0)
   const chord = useRef(0)
   const admin = user.role === 'admin'
-  const target = bootstrap.targets.find(target => target.id === route.targetId) ?? (!route.targetId ? bootstrap.targets[0] : null) ?? null
-  useEffect(() => { if (target && !route.targetId) navigate({ ...route, targetId: target.id }) }, [target, route, navigate])
+  const target = bootstrap.targets.find(target => target.id === route.targetId) ?? null
   const access = targetAccess(user, target)
   const view: View = !admin && (route.view === 'people' || route.view === 'activity' || route.view === 'targets') ? 'files' : route.view
   const folder = view === 'files' ? route.path : lastFolder.targetId === target?.id ? lastFolder.path : '/'
-  if (view === 'files' && (route.path !== lastFolder.path || target?.id !== lastFolder.targetId)) setLastFolder({ targetId: target?.id ?? null, path: route.path })
+  if (view === 'files' && target && (route.path !== lastFolder.path || target.id !== lastFolder.targetId)) setLastFolder({ targetId: target.id, path: route.path })
 
   const notify = useCallback((text: string, error = false) => {
     setToasts(previous => [...previous.slice(-3), { id: Date.now() + Math.random(), text, error }])
@@ -108,14 +108,14 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
   }, [busy])
 
   const go = useCallback((next: View, path?: string) => navigate({ view: next, targetId: target?.id ?? null, path: next === 'files' ? path ?? '/' : '/' }), [navigate, target?.id])
-  const goFiles = () => go('files', view === 'files' ? '/' : folder)
+  const goFiles = () => { setOverlay(null); navigate({ view: 'files', targetId: null, path: '/' }) }
   const addFiles = useCallback((files: File[], directory: string, fromDialog = false) => {
     if (!files.length) return
     if (!target || !can(access, 'upload')) return
     engine.add(files, target, directory)
     setOverlay(null)
     if (fromDialog) go('transfers')
-    else notify(`Uploading ${plural(files.length, 'file')} to ${directory === '/' ? 'My files' : directory}.`)
+    else notify(`Uploading ${plural(files.length, 'file')} to ${directory === '/' ? target.name : directory}.`)
   }, [engine, go, notify, target, access])
   const signOut = () => { void api('/auth/logout', { method: 'POST' }).then(onAuthChanged).catch(error => notify(errorMessage(error), true)) }
   const openUpload = useCallback(() => setOverlay('upload'), [])
@@ -128,7 +128,7 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
     if (Date.now() - chord.current < 1000) {
       chord.current = 0
       const target = ({ f: 'files', t: 'transfers', s: 'settings', ...(admin ? { p: 'people', a: 'activity' } : {}) } as Record<string, View>)[key]
-      if (target) { event.preventDefault(); go(target, folder) }
+      if (target) { event.preventDefault(); if (target === 'files') goFiles(); else go(target) }
       return
     }
     if (key === 'g') chord.current = Date.now()
@@ -148,7 +148,7 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
   const speed = running.reduce((sum, task) => sum + task.speed, 0)
 
   const commands: Command[] = [
-    { id: 'files', group: 'Go to', label: 'My files', icon: IconFolders, shortcut: 'G F', run: () => go('files', '/') },
+    { id: 'files', group: 'Go to', label: 'My files', icon: IconFolders, shortcut: 'G F', run: goFiles },
     { id: 'transfers', group: 'Go to', label: 'Transfers', icon: IconArrowsTransferUp, shortcut: 'G T', run: () => go('transfers') },
     ...(admin ? [
       { id: 'people', group: 'Go to', label: 'People & access', icon: IconUsers, shortcut: 'G P', keywords: 'users accounts', run: () => go('people') },
@@ -183,10 +183,6 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
         <nav className="nav" aria-label="Main">
           <div className="nav-caption">Workspace</div>
           {navItem('files', 'My files', IconFolders)}
-          <label className="sr-only" htmlFor="target-picker">Storage target</label>
-          <select id="target-picker" className="select target-picker" value={target?.id ?? ''} onChange={event => { setOverlay(null); navigate({ view: 'files', targetId: event.target.value, path: '/' }) }}>
-            <option value="" disabled>Select a target</option>{bootstrap.targets.map(target => <option key={target.id} value={target.id}>{target.name} · {target.type.toUpperCase()}</option>)}
-          </select>
           {navItem('transfers', 'Transfers', IconArrowsTransferUp, { count: active.length, tone: attention ? 'is-warning' : running.length ? 'is-accent' : '' })}
           {admin ? <>
             <div className="nav-caption">Administration</div>
@@ -218,8 +214,9 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
         </div>
       </aside>
       <main className="main">
-        {view === 'files' && (access && target ? <FilesView key={target.id} path={route.path} user={access} transfers={transfers} density={density} onNavigate={path => go('files', path)}
-          onUpload={openUpload} onAddFiles={addFiles} onTransfers={() => go('transfers')} folderRequest={folderRequest} /> : <div className="page page-scroll"><header className="page-header"><h1 className="page-title">Choose a storage target</h1></header><p className="page-foot">{bootstrap.targets.length ? 'Select a target in the sidebar to browse its files.' : admin ? 'Add a target in Storage targets to start browsing.' : 'Ask an administrator to grant access to a storage target.'}</p></div>)}
+        {view === 'files' && (access && target ? <FilesView key={target.id} targetName={target.name} path={route.path} user={access} transfers={transfers} density={density} onNavigate={path => go('files', path)} onTargets={goFiles}
+          onUpload={openUpload} onAddFiles={addFiles} onTransfers={() => go('transfers')} folderRequest={folderRequest} /> : <TargetListView targets={bootstrap.targets} admin={admin} unavailable={!!route.targetId}
+          onOpen={id => navigate({ view: 'files', targetId: id, path: '/' })} onManage={() => go('targets')} onRefresh={onAuthChanged} />)}
         {view === 'transfers' && <TransfersView targets={bootstrap.targets} access={access} transfers={transfers} engine={engine} user={user} connections={connections} onConnections={setConnections} onUpload={openUpload} />}
         {view === 'people' && <PeopleView currentUser={user} onAuthChanged={onAuthChanged} />}
         {view === 'targets' && <TargetsView onChanged={onAuthChanged} />}
@@ -228,11 +225,10 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
         <footer className="statusbar">
           <span className="status-item"><span className="live-dot" />Connected</span>
           {access?.storageReadOnly && <span className="status-item">Read-only storage</span>}
-          <span className="status-item mono">{target?.name ?? 'No target'} · {folder}</span>
+          <span className="status-item mono">{target ? `${target.name} · ${folder}` : 'My files'}</span>
           <span className="status-spacer" />
           {running.length > 0 && <button type="button" className="status-item status-btn" onClick={() => go('transfers')}><IconArrowsTransferUp size={12} />{running.length} running · <span className="mono">{formatBytes(speed)}/s</span></button>}
           {attention > 0 && <button type="button" className="status-item status-btn is-warning" onClick={() => go('transfers')}><IconAlertTriangle size={12} />{attention} need attention</button>}
-          <span className="status-item mono hide-sm">{formatBytes(bootstrap.upload.chunkSize)} chunks · {connections}× parallel</span>
           <button type="button" className="status-item status-btn hide-sm" onClick={() => setOverlay('shortcuts')}><IconKeyboard size={12} />Shortcuts <Kbd>?</Kbd></button>
           <span className="status-item mono dim hide-sm">v{system?.version ?? VERSION}</span>
         </footer>
@@ -240,7 +236,7 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
       {overlay === 'upload' && target && access && can(access, 'upload') && <UploadDialog targetName={target.name} directory={folder}
         limits={{ ...bootstrap.upload, maxFileSize: Math.min(bootstrap.upload.maxFileSize, target.capabilities.maxChunks * bootstrap.upload.chunkSize) }} connections={connections} onConnections={setConnections}
         onFiles={files => addFiles(files, folder, true)} onClose={() => setOverlay(null)} />}
-      {overlay === 'palette' && <CommandPalette commands={commands} onClose={() => setOverlay(null)} onOpenPath={path => go('files', '/' + path.split('/').filter(Boolean).join('/'))} />}
+      {overlay === 'palette' && <CommandPalette commands={commands} onClose={() => setOverlay(null)} onOpenPath={target ? path => go('files', '/' + path.split('/').filter(Boolean).join('/')) : undefined} />}
       {overlay === 'shortcuts' && <Shortcuts onClose={() => setOverlay(null)} />}
       <Toasts toasts={toasts} onDismiss={id => setToasts(previous => previous.filter(toast => toast.id !== id))} />
       <Tooltips />

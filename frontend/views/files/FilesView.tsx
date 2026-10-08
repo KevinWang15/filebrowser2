@@ -29,9 +29,9 @@ const HEADER_HEIGHT = 30
 
 const join = (directory: string, name: string) => (directory === '/' ? '' : directory) + '/' + name
 
-export function FilesView({ path, user, transfers, density, folderRequest, onNavigate, onUpload, onAddFiles, onTransfers }: {
-  path: string; user: TargetAccess; transfers: Transfer[]; density: 'compact' | 'comfortable'; folderRequest: number
-  onNavigate: (path: string) => void; onUpload: () => void; onAddFiles: (files: File[], directory: string) => void; onTransfers: () => void
+export function FilesView({ targetName, path, user, transfers, density, folderRequest, onNavigate, onTargets, onUpload, onAddFiles, onTransfers }: {
+  targetName: string; path: string; user: TargetAccess; transfers: Transfer[]; density: 'compact' | 'comfortable'; folderRequest: number
+  onNavigate: (path: string) => void; onTargets: () => void; onUpload: () => void; onAddFiles: (files: File[], directory: string) => void; onTransfers: () => void
 }) {
   const notify = useNotify()
   const [listing, setListing] = useState<Listing>({ path: '', entries: [], error: '' })
@@ -185,7 +185,7 @@ export function FilesView({ path, user, transfers, density, folderRequest, onNav
     if (onControl && (event.key === 'Enter' || event.key === ' ')) return
     const index = visible.findIndex(entry => entry.path === cursor)
     const mod = event.metaKey || event.ctrlKey
-    if (mod && event.key === 'ArrowUp') { event.preventDefault(); if (path !== '/') onNavigate(parentPath(path)); return }
+    if (mod && event.key === 'ArrowUp') { event.preventDefault(); if (path === '/') onTargets(); else onNavigate(parentPath(path)); return }
     const columns = layout === 'grid' && scroller.current ? Math.max(1, Math.floor(scroller.current.clientWidth / 156)) : 1
     const move = (delta: number) => {
       event.preventDefault()
@@ -210,7 +210,7 @@ export function FilesView({ path, user, transfers, density, folderRequest, onNav
       case 'PageUp': return move(-10)
       case 'Enter': if (cursorEntry) { event.preventDefault(); open(cursorEntry) } return
       case ' ': if (cursorEntry && !cursorEntry.uploading) { event.preventDefault(); onToggle(cursorEntry) } return
-      case 'Backspace': if (path !== '/') { event.preventDefault(); onNavigate(parentPath(path)) } return
+      case 'Backspace': event.preventDefault(); if (path === '/') onTargets(); else onNavigate(parentPath(path)); return
       case 'F2': if (picked.length === 1 && can(user, 'rename')) { event.preventDefault(); rename(picked[0]) } return
       case 'Delete': if (picked.length && can(user, 'delete')) { event.preventDefault(); remove(picked) } return
       case 'Escape': if (selected.size) { event.preventDefault(); setSelected(new Set()) } return
@@ -236,7 +236,7 @@ export function FilesView({ path, user, transfers, density, folderRequest, onNav
   } : {}
 
   const parts = path.split('/').filter(Boolean)
-  const title = parts.length ? parts[parts.length - 1] : 'My files'
+  const title = parts.length ? parts[parts.length - 1] : targetName
   const showDetails = details === 'open'
   const listProps = {
     entries: visible, user, selected, cursor, pending, sort, ascending: order === 'asc', onSort, onRowClick, onOpen: open, onMenu: menuHandler,
@@ -246,11 +246,12 @@ export function FilesView({ path, user, transfers, density, folderRequest, onNav
   return <div className={`files-view ${dragging ? 'is-dragging' : ''}`} {...dropHandlers}>
     <header className="page-header">
       <nav className="breadcrumbs" aria-label="Breadcrumb">
-        <button type="button" className="icon-btn" aria-label="Parent folder" data-tip="Parent folder (Ctrl/⌘ ↑ or Backspace)" disabled={path === '/'} onClick={() => onNavigate(parentPath(path))}><IconArrowUp size={16} /></button>
+        <button type="button" className="icon-btn" aria-label="Parent folder" data-tip="Parent folder (Ctrl/⌘ ↑ or Backspace)" onClick={() => path === '/' ? onTargets() : onNavigate(parentPath(path))}><IconArrowUp size={16} /></button>
         <ol>
-          {parts.length > 0 && <li><button type="button" className="crumb" onClick={() => onNavigate('/')}><IconHome2 size={15} /><span>My files</span></button></li>}
+          <li><button type="button" className="crumb" onClick={onTargets}><IconHome2 size={15} /><span>My files</span></button></li>
+          {parts.length > 0 && <li><IconChevronRight size={13} className="crumb-sep" /><button type="button" className="crumb" onClick={() => onNavigate('/')}><span>{targetName}</span></button></li>}
           {parts.slice(0, -1).map((part, index) => <li key={index}><IconChevronRight size={13} className="crumb-sep" /><button type="button" className="crumb" onClick={() => onNavigate('/' + parts.slice(0, index + 1).join('/'))}>{part}</button></li>)}
-          <li aria-current="page">{parts.length > 0 && <IconChevronRight size={13} className="crumb-sep" />}<h1 className="page-title" title={path}>{parts.length ? title : <><IconHome2 size={17} className="title-icon" />My files</>}</h1></li>
+          <li aria-current="page"><IconChevronRight size={13} className="crumb-sep" /><h1 className="page-title" title={title}>{title}</h1></li>
         </ol>
       </nav>
       <div className="page-actions">
@@ -297,7 +298,8 @@ export function FilesView({ path, user, transfers, density, folderRequest, onNav
         onClick={event => { if (event.target === event.currentTarget || (event.target as HTMLElement).classList.contains('file-grid')) setSelected(new Set()) }}>
         {listing.error && !loading ? <EmptyState icon={IconAlertTriangle} title="Couldn’t open this folder" action={<div className="empty-actions">
           <button type="button" className="btn" onClick={() => void refresh()}><IconRefresh size={15} />Try again</button>
-          {path !== '/' && <button type="button" className="btn btn-ghost" onClick={() => onNavigate('/')}>Go to My files</button>}</div>}>{listing.error}</EmptyState>
+          {path !== '/' && <button type="button" className="btn btn-ghost" onClick={() => onNavigate('/')}>Go to {targetName}</button>}
+          <button type="button" className="btn btn-ghost" onClick={onTargets}>Go to My files</button></div>}>{listing.error}</EmptyState>
           : loading ? <SkeletonRows />
             : !visible.length ? search
               ? <EmptyState icon={IconSearch} title="No matches" action={<button type="button" className="btn btn-sm" onClick={() => setSearch('')}>Clear filter</button>}>Nothing in this folder matches “{search}”.</EmptyState>
@@ -309,7 +311,7 @@ export function FilesView({ path, user, transfers, density, folderRequest, onNav
       </div>
       {showDetails && <Inspector entry={picked.length <= 1 ? (picked[0] ?? cursorEntry) : null} selection={picked} folder={path} folderEntries={entries} user={user}
         onClose={() => setDetails('closed')} onOpen={open} onDownload={downloadItems} onRename={rename} onDelete={remove} onCopyPath={copyPath} onTransfers={onTransfers} />}
-      {dragging && <div className="drop-overlay"><div><IconCloudUpload size={30} stroke={1.5} /><strong>Drop to upload</strong><span>into <span className="mono">{path === '/' ? 'My files' : title}</span></span></div></div>}
+      {dragging && <div className="drop-overlay"><div><IconCloudUpload size={30} stroke={1.5} /><strong>Drop to upload</strong><span>into <span className="mono">{title}</span></span></div></div>}
     </div>
 
     {menu && <Menu {...menu} onClose={() => setMenu(null)} />}

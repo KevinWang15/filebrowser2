@@ -1,10 +1,11 @@
 import { randomUUID, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
-import { readFileSync, writeFileSync, chmodSync, openSync, fsyncSync, closeSync, lstatSync } from 'node:fs'
+import { readFileSync, writeFileSync, chmodSync, openSync, fsyncSync, closeSync, lstatSync, constants } from 'node:fs'
+import { access } from 'node:fs/promises'
 import { join, resolve, dirname } from 'node:path'
 import { z } from 'zod'
 import { FULL_PERMISSIONS, type AdminTarget, type Target, type TargetAccess, type TargetConnection, type User, type Permission } from '@/shared/types'
 import { Store, type TargetRow } from './store'
-import { HttpError } from './errors'
+import { HttpError, isFsError } from './errors'
 import { storageLocations } from './config'
 import { LocalStorage } from './storage/local'
 import { S3Storage } from './storage/s3'
@@ -161,9 +162,29 @@ export class Targets {
     const settingsChanged = Object.keys(record).some(field => !SECRET_FIELDS.has(field) && record[field] !== old[field])
     if (settingsChanged && this.store.retainedUploads().some(upload => upload.target_id === id)) throw new HttpError(409, 'Finish or cancel uploads before changing connection settings. Secret credentials can be renewed independently.')
     if (connectionChanged && this.store.db.prepare('SELECT id FROM network_shares WHERE target_id=?').get(id)) throw new HttpError(409, 'Remove this target’s protocol shares before editing it')
-    this.store.db.prepare('UPDATE targets SET name=?,connection=?,enabled=?,read_only=? WHERE id=?')
-      .run(body.name, this.encrypt(body.connection), +body.enabled, +body.readOnly, id)
+    // Verify a local write-access transition before replacing a working configuration.
+    // Retain the initialized backend and its lock so the check is not lost on save.
+    const writable = body.connection.type === 'local' && body.enabled && !body.readOnly && (row.read_only || !row.enabled)
+      ? new LocalStorage(body.connection.root, this.publishFault) : undefined
+    try {
+      if (writable) {
+        this.validate(body.connection, id)
+        await writable.init(); await access(writable.root, constants.W_OK); await writable.lock()
+      }
+      this.store.db.prepare('UPDATE targets SET name=?,connection=?,enabled=?,read_only=? WHERE id=?')
+        .run(body.name, this.encrypt(body.connection), +body.enabled, +body.readOnly, id)
+    } catch (error) {
+      writable?.close()
+      if (writable && (isFsError(error, 'EACCES') || isFsError(error, 'EPERM'))) {
+        throw new HttpError(403, 'Cannot enable write access. Grant the application write permission to this directory before disabling Read only.', 'STORAGE_PERMISSION')
+      }
+      if (writable && isFsError(error, 'EROFS')) {
+        throw new HttpError(403, 'Cannot enable write access. Make the filesystem mount writable before disabling Read only.', 'STORAGE_READ_ONLY')
+      }
+      throw error
+    }
     await this.release(id)
+    if (writable) this.backends.set(id, Promise.resolve(writable))
     return this.adminView(this.row(id))
   }
   async remove(id: string) {

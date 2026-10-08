@@ -62,11 +62,12 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Administrator console to add, edit, test, enable, disable, mark read-only, and remove eligible targets.
 - Connection tests verify access to the configured root or bucket and return the adapter's capabilities.
 - Target-specific routes, grants, upload sessions, destination reservations, archives, and file/upload audit records; identical paths on different targets remain independent.
-- Target picker and target-qualified folder URLs; unavailable or ungranted route targets show a chooser instead of silently switching storage.
+- Targets as the first level of My files, with target-qualified folder URLs; unavailable or ungranted route targets show a chooser instead of silently switching storage.
 - Encrypted connection configuration using AES-256-GCM and a separate private `targets.key` file.
 - Write-only secret fields: admin responses redact saved credentials and identify which fields already have secrets; blank secret fields on edits preserve existing values.
 - Credential renewal while uploads are retained, allowing recovery without discarding verified progress; connection edits require resolving existing protocol shares.
 - Immutable target type and location; other connection setting changes require resolving retained uploads, while name, enabled, and read-only flags can change independently.
+- Local read/write transitions and re-enabling writable targets verify write access and the storage lock before saving, preserving the previous configuration on failure.
 - Detection and rejection of equal or overlapping namespaces within a storage type, including local directory identity checks and remote bucket-prefix/root checks.
 - Disabling a target preserves transfer state for later recovery; targets with transfer history or shares must be disabled instead of removed.
 - Removing an eligible target removes its connection and grants while leaving stored files intact.
@@ -79,6 +80,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Host/container directory targets with absolute roots or roots resolved from relative configuration paths.
 - Writable root initialization, regular file/directory browsing, folder creation, renaming, deletion, streamed reads, and filesystem capacity reporting.
 - Physical read-only mount support without creating lock or staging files on the file mount; private application state remains separately writable.
+- Upload staging follows mount boundaries, including separate bind mounts on the same filesystem, so payload publication and visible upload files stay on the destination mount.
 - File publication and file rename through exclusive hard links followed by unlinking, preserving the inode and avoiding replacement of an existing destination.
 - File and directory fsync around upload checkpoints, publication, and filesystem mutations.
 - Upload staging on the destination filesystem, including nested mounts on a different device, with a durable central stage registry.
@@ -129,7 +131,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - List and grid layouts with file/folder names, type labels/icons, sizes, and modification times.
 - Directory-first sorting by name, size, type, or modification time in ascending or descending order, with natural numeric name ordering.
 - Case-insensitive filename filtering within the current folder, with match counts and a clear-filter action.
-- Breadcrumb navigation to the root or any ancestor, parent-folder buttons, and browser history through hash routes.
+- Breadcrumb hierarchy from My files to the target and folder ancestors, parent navigation back to the target list, and browser history through hash routes.
 - Direct folder navigation by typing a `/path` in the command palette.
 - Manual refresh and automatic listing refresh when local browser transfers create pending entries, finish, or cancel.
 - Protection against stale listing responses after navigation or a newer refresh.

@@ -2,6 +2,8 @@
 
 A target is an explicit named storage connection with an immutable identity and location. Setup can create the first target or leave storage unconfigured. No directory is exposed until an administrator adds a target. Administrators manage every enabled target; members need individual target grants with an existing home folder and separate read, download, upload, create, rename and delete permissions.
 
+**My files** first lists the enabled storage targets you can access. Open a target to browse its files; breadcrumbs follow **My files → target → folders**. The parent button at a target’s root returns to the target list, as do the My files navigation item and shortcut.
+
 Every file URL contains `/api/targets/:targetId/files`; browser routes contain `#/files/:targetId/path`. Upload manifests and sessions contain `targetId`. Destination reservations, caches, archives, audit entries and SMB exports retain that identity. Identical virtual paths in different targets are independent. Selecting an unavailable target shows a chooser instead of silently browsing another filesystem.
 
 ## Connections and secrets

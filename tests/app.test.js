@@ -56,8 +56,10 @@ test('setup is one-time; credentials, sessions, CSRF, and instance exclusion are
   const second = await createApp({stateDirectory:join(f.root,'other-state')})
   const secondUrl = await second.listen({host:'127.0.0.1',port:0})
   const secondSetup = await fetch(secondUrl+'/api/setup',{method:'POST',headers:{'content-type':'application/json','x-filebrowser-request':'1'},body:JSON.stringify({username:'admin',password,siteName:'Other',target:localTarget(f.options.storageRoot)})})
-  assert.equal(secondSetup.status,500)
-  await second.close()
+  try {
+    assert.equal(secondSetup.status,409)
+    assert.equal((await secondSetup.json()).code,'STORAGE_BUSY')
+  } finally { await second.close() }
   await f.restart()
   assert.equal((await f.request('/bootstrap')).status,200)
   assert.equal((await (await f.request('/bootstrap')).json()).user.username,'admin')

@@ -319,18 +319,22 @@ export async function createApp(options: AppOptions = {}) {
   })
   app.patch<{ Params: { id: string } }>('/api/admin/targets/:id', async request => {
     const actor = requireAdmin(request), id = idSchema.parse(request.params.id)
-    const target = await targets.update(id, targetSchema.parse(request.body))
-    auth.recheckStreams()
-    await closeArchives(id)
-    store.audit(actor.username, 'target.updated', target.name, id)
-    await shares.publish(true)
-    return target
+    return mutate(id, async () => {
+      const target = await targets.update(id, targetSchema.parse(request.body))
+      auth.recheckStreams()
+      await closeArchives(id)
+      store.audit(actor.username, 'target.updated', target.name, id)
+      await shares.publish(true)
+      return target
+    })
   })
   app.delete<{ Params: { id: string } }>('/api/admin/targets/:id', async (request, reply) => {
     const actor = requireAdmin(request), id = idSchema.parse(request.params.id), name = targets.row(id).name
-    await targets.remove(id); auth.recheckStreams(); await closeArchives(id)
-    store.audit(actor.username, 'target.deleted', name)
-    return reply.code(204).send()
+    return mutate(id, async () => {
+      await targets.remove(id); auth.recheckStreams(); await closeArchives(id)
+      store.audit(actor.username, 'target.deleted', name)
+      return reply.code(204).send()
+    })
   })
   app.post<{ Params: { id: string } }>('/api/admin/targets/:id/test', async request => {
     requireAdmin(request); const backend = await targets.backend(idSchema.parse(request.params.id))

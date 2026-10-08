@@ -15,6 +15,21 @@ async function syncDirectory(path: string) {
   try { await handle.sync() } finally { await handle.close() }
 }
 
+async function directoryFilesystem(path: string) {
+  const handle = await open(path, constants.O_RDONLY | constants.O_DIRECTORY)
+  try {
+    const device = (await handle.stat({ bigint: true })).dev
+    let mount: string | null = null
+    try { mount = (await readFile(`/proc/self/fdinfo/${handle.fd}`, 'utf8')).match(/^mnt_id:\s*(\d+)$/m)?.[1] ?? null }
+    catch (error) { if (!isFsError(error, 'ENOENT') && !isFsError(error, 'EACCES')) throw error }
+    return { device, mount }
+  } finally { await handle.close() }
+}
+
+function sameFilesystem(a: Awaited<ReturnType<typeof directoryFilesystem>>, b: Awaited<ReturnType<typeof directoryFilesystem>>) {
+  return a.device === b.device && (a.mount === null || b.mount === null || a.mount === b.mount)
+}
+
 export class LocalStorage implements StorageBackend, SequentialUploadBackend, DirectoryExportBackend {
   readonly name = 'Local storage'
   readonly type = 'local'
@@ -54,7 +69,7 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend, Di
     catch (error) { if (!isFsError(error, 'ENOENT')) throw error }
     const lock = new DatabaseSync(path)
     try { lock.exec('PRAGMA busy_timeout = 0; BEGIN EXCLUSIVE;') }
-    catch (error) { lock.close(); throw new Error('Another Filebrowser process owns this storage root', { cause: error }) }
+    catch { lock.close(); throw new HttpError(409, 'Another Filebrowser process owns this storage root', 'STORAGE_BUSY') }
     this.rootLock = lock
   }
   close() { this.rootLock?.close(); this.rootLock = undefined }
@@ -211,13 +226,14 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend, Di
     this.writable()
     const registry = this.stage(id)
     const parent = await this.safePath(dirname(destination))
-    const device = (await lstat(parent, { bigint: true })).dev
+    const filesystem = await directoryFilesystem(parent), device = filesystem.device
     let stage = registry
-    if (device !== (await lstat(this.staging, { bigint: true })).dev) {
+    // Separate bind mounts can share st_dev while still rejecting hard links.
+    if (!sameFilesystem(filesystem, await directoryFilesystem(this.staging))) {
       let volume = parent
       while (volume !== this.root) {
         const above = dirname(volume)
-        if ((await lstat(above, { bigint: true })).dev !== device) break
+        if (!sameFilesystem(filesystem, await directoryFilesystem(above))) break
         volume = above
       }
       const staging = join(volume, '.filebrowser-uploads-' + device)

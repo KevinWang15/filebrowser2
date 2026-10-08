@@ -15,13 +15,13 @@ function score(command: Command, query: string) {
 }
 
 /** Ctrl/⌘ K launcher for navigation and actions. Typing a path starting with "/" opens that folder. */
-export function CommandPalette({ commands, onOpenPath, onClose }: { commands: Command[]; onOpenPath: (path: string) => void; onClose: () => void }) {
+export function CommandPalette({ commands, onOpenPath, onClose }: { commands: Command[]; onOpenPath?: (path: string) => void; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const normalized = query.trim().toLowerCase()
   const results = useMemo(() => {
     const matched = commands.map(command => ({ command, rank: score(command, normalized) })).filter(item => item.rank > 0).sort((a, b) => b.rank - a.rank).map(item => item.command)
-    if (normalized.startsWith('/')) matched.unshift({ id: 'path', label: `Open folder ${query.trim()}`, group: 'Go to', icon: IconCornerDownLeft, run: () => onOpenPath(query.trim()) })
+    if (onOpenPath && normalized.startsWith('/')) matched.unshift({ id: 'path', label: `Open folder ${query.trim()}`, group: 'Go to', icon: IconCornerDownLeft, run: () => onOpenPath(query.trim()) })
     return matched
   }, [commands, normalized, query, onOpenPath])
   const index = Math.min(active, Math.max(0, results.length - 1))
@@ -29,7 +29,7 @@ export function CommandPalette({ commands, onOpenPath, onClose }: { commands: Co
   return <Modal title="Command palette" size="md" className="palette" onClose={onClose}>
     <div className="palette-search">
       <IconSearch size={16} />
-      <input data-autofocus className="palette-input" placeholder="Type a command, or a folder path like /Projects" value={query} aria-label="Command"
+      <input data-autofocus className="palette-input" placeholder={onOpenPath ? 'Type a command, or a folder path like /Projects' : 'Type a command'} value={query} aria-label="Command"
         aria-controls="palette-list" aria-activedescendant={results[index] ? 'cmd-' + results[index].id : undefined} role="combobox" aria-expanded="true"
         onChange={event => { setQuery(event.target.value); setActive(0) }}
         onKeyDown={event => {

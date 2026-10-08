@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHash } from 'node:crypto'
-import { mkdtemp, rm, readFile, mkdir } from 'node:fs/promises'
+import { mkdtemp, rm, readFile, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { DatabaseSync } from 'node:sqlite'
@@ -107,6 +107,40 @@ test('target disabling and read-only policy apply to saved uploads; immutable lo
   await f.restart()
   assert.equal((await (await f.request(`/uploads/${session.id}`)).json()).status, 'uploading')
   assert.equal((await f.request(`/uploads/${session.id}`, 'DELETE')).status, 200)
+})
+
+test('failed local write-access checks preserve settings and browsing; successful transitions retain their lock', async t => {
+  const f = await fixture(t, false), root = join(f.root, 'readonly')
+  await mkdir(root); await writeFile(join(root, 'readable.txt'), 'Still readable')
+  const config = { ...localTarget(root), readOnly: true }
+  const created = await f.request('/admin/targets', 'POST', config)
+  assert.equal(created.status, 201); const id = (await created.json()).id
+  const content = `/targets/${id}/files/content?path=/readable.txt`
+  assert.equal(await (await f.request(content)).text(), 'Still readable')
+  const blocker = new DatabaseSync(join(root, '.filebrowser-lock'))
+  blocker.exec('BEGIN EXCLUSIVE')
+  try {
+    const rejected = await f.request('/admin/targets/' + id, 'PATCH', { ...config, name: 'Should not be saved', readOnly: false })
+    assert.equal(rejected.status, 409)
+    assert.equal((await rejected.json()).code, 'STORAGE_BUSY')
+    let saved = (await (await f.request('/admin/targets')).json())[0]
+    assert.equal(saved.name, config.name); assert.equal(saved.readOnly, true); assert.equal(saved.enabled, true)
+    assert.equal(await (await f.request(content)).text(), 'Still readable')
+    await f.restart()
+    assert.equal((await f.request('/bootstrap')).status, 200)
+    assert.equal(await (await f.request(content)).text(), 'Still readable')
+    assert.equal((await f.request('/admin/targets/' + id, 'PATCH', { ...config, enabled: false, readOnly: false })).status, 200)
+    assert.equal((await f.request('/admin/targets/' + id, 'PATCH', { ...config, readOnly: false })).status, 409)
+    saved = (await (await f.request('/admin/targets')).json())[0]
+    assert.equal(saved.enabled, false)
+  } finally { blocker.close() }
+  const writable = await f.request('/admin/targets/' + id, 'PATCH', { ...config, readOnly: false })
+  assert.equal(writable.status, 200, await writable.clone().text())
+  assert.equal((await writable.json()).readOnly, false)
+  await upload(f, id, 'after-transition.txt', Buffer.from('Write access verified'))
+  assert.equal(await (await f.request(`/targets/${id}/files/content?path=/after-transition.txt`)).text(), 'Write access verified')
+  await f.restart()
+  assert.equal((await f.request(`/targets/${id}/files`)).status, 200)
 })
 
 test('connection secrets are redacted, encrypted on disk, kept on edit, and never included in audit', async t => {
