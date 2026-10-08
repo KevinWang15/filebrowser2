@@ -16,12 +16,11 @@ type Connection = Extract<TargetConnection, { type: 's3' }>
 interface Part { PartNumber: number; ETag: string; ChecksumSHA256: string; end: number }
 interface Stage { id: string; destination: string; uploadId: string; parts: Part[] }
 export class S3Storage implements StorageBackend, SequentialUploadBackend {
-  readonly type = 's3'
   readonly capabilities
   private client: S3Client
   private chunks: Chunks
   private restored = new Set<string>()
-  constructor(readonly name: string, private connection: Connection, directory: string, readOnly: boolean) {
+  constructor(private connection: Connection, directory: string, readOnly: boolean) {
     this.capabilities = capabilities('s3', readOnly); this.chunks = new Chunks(directory)
     this.client = new S3Client({ region: connection.region, endpoint: connection.endpoint || undefined, forcePathStyle: connection.forcePathStyle,
       credentials: { accessKeyId: connection.accessKeyId, secretAccessKey: connection.secretAccessKey, sessionToken: connection.sessionToken || undefined }, maxAttempts: 2, requestHandler: { connectionTimeout: 10_000, socketTimeout: 120_000 } })

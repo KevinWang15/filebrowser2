@@ -5,3 +5,9 @@ export const verificationTargetId = bootstrap => {
   if (!target) throw new Error('Configure the named Local verification target first')
   return target.id
 }
+
+export async function openTarget(page, name = 'Local', path = '/') {
+  await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('button', { name: 'My files', exact: true }).click()
+  await page.getByRole('list', { name: 'Storage targets', exact: true }).getByRole('button', { name, exact: true }).click()
+  for (const folder of path.split('/').filter(Boolean)) await page.getByRole('button', { name: folder, exact: true }).click()
+}

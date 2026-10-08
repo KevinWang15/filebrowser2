@@ -124,6 +124,54 @@ test('scopes, permission changes, symlinks, traversal, and last-admin protection
   assert.equal(demote.status,409)
 })
 
+test('folder upload directory creation reuses directories safely and retains strict ordinary creation', async t => {
+  const f = await fixture(t), endpoint = `/targets/${f.targetId}/files/directories`
+  const body = { directory: '/', name: 'Project', existOk: true }
+  assert.equal((await f.request(endpoint, 'POST', body)).status, 200)
+  await writeFile(join(f.options.storageRoot, 'Project', 'unrelated.txt'), 'keep this')
+  const session = await initialize(f, 'pending.txt', Buffer.from('pending'), '/Project')
+  assert.equal((await f.request(endpoint, 'POST', body)).status, 200, 'existing folders with active child transfers are reusable')
+  assert.equal((await f.request(endpoint, 'POST', { directory: '/', name: 'Project' })).status, 409)
+  assert.equal((await f.request(endpoint, 'POST', { directory: '/Project', name: 'Nested', existOk: true })).status, 200)
+  const conflict = await f.request(endpoint, 'POST', { directory: '/Project', name: 'unrelated.txt', existOk: true })
+  assert.equal(conflict.status, 409); assert.equal((await conflict.json()).code, 'DESTINATION_EXISTS')
+  assert.equal(await readFile(join(f.options.storageRoot, 'Project', 'unrelated.txt'), 'utf8'), 'keep this')
+  for (const name of ['../escape', '.filebrowser-state', 'bad\\name']) assert.equal((await f.request(endpoint, 'POST', { ...body, name })).status, 400)
+  await mkdir(join(f.root, 'outside'))
+  await symlink(join(f.root, 'outside'), join(f.options.storageRoot, 'escape'))
+  assert.equal((await f.request(endpoint, 'POST', { ...body, name: 'escape' })).status, 403)
+  assert.equal((await f.request(`/uploads/${session.id}`, 'DELETE')).status, 200)
+})
+
+test('folder directory reuse requires create permission and respects scopes without requiring read', async t => {
+  const f = await fixture(t), endpoint = `/targets/${f.targetId}/files/directories`
+  await mkdir(join(f.options.storageRoot, 'team', 'Existing'), { recursive: true })
+  const permissions = { ...FULL_PERMISSIONS, read: false, download: false, rename: false, delete: false }
+  const userResponse = await f.request('/admin/users', 'POST', { username: 'folder-writer', password, role: 'user', grants: [{ targetId: f.targetId, scope: '/team', permissions }] })
+  assert.equal(userResponse.status, 201)
+  const user = await userResponse.json(), adminCookie = f.cookie
+  const login = await f.request('/auth/login', 'POST', { username: 'folder-writer', password })
+  f.cookie = login.headers.get('set-cookie').split(';')[0]
+  const body = { directory: '/', name: 'Existing', existOk: true }
+  assert.equal((await f.request(`/targets/${f.targetId}/files`)).status, 403)
+  assert.equal((await f.request(endpoint, 'POST', body)).status, 200)
+  assert.equal((await f.request(endpoint, 'POST', { ...body, directory: '/Existing', name: 'Nested' })).status, 200)
+  assert.ok((await stat(join(f.options.storageRoot, 'team', 'Existing', 'Nested'))).isDirectory())
+  await assert.rejects(stat(join(f.options.storageRoot, 'Existing')), { code: 'ENOENT' })
+  assert.equal((await f.request(endpoint, 'POST', { ...body, directory: '/../' })).status, 400)
+  f.cookie = adminCookie
+  assert.equal((await f.request('/admin/users/' + user.id, 'PATCH', { username: user.username, role: 'user', disabled: false, grants: [{ targetId: f.targetId, scope: '/team', permissions: { ...permissions, create: false } }] })).status, 200)
+  const deniedLogin = await f.request('/auth/login', 'POST', { username: user.username, password })
+  f.cookie = deniedLogin.headers.get('set-cookie').split(';')[0]
+  assert.equal((await f.request(endpoint, 'POST', body)).status, 403, 'even existing folders require create permission')
+  f.cookie = adminCookie
+  await mkdir(join(f.root, 'readonly'))
+  const readonly = await f.request('/admin/targets', 'POST', { ...localTarget(join(f.root, 'readonly')), name: 'Readonly', readOnly: true })
+  assert.equal(readonly.status, 201)
+  const target = await readonly.json()
+  assert.equal((await f.request(`/targets/${target.id}/files/directories`, 'POST', body)).status, 403)
+})
+
 test('unsupported native filenames do not prevent browsing addressable files',async t=>{
   const f=await fixture(t)
   for(const name of ['visible.txt','notes\\draft.txt','line\nbreak.txt'])await writeFile(join(f.options.storageRoot,name),'fixture')

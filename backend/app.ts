@@ -123,7 +123,6 @@ export async function createApp(options: AppOptions = {}) {
     if (isFsError(error, 'ENOSPC') || isFsError(error, 'EDQUOT')) return reply.code(507).send({ message: 'Storage is full. Free space and resume.', code: 'DISK_FULL' })
     if (isFsError(error, 'EACCES') || isFsError(error, 'EPERM')) return reply.code(403).send({ message: 'Storage access was denied', code: 'STORAGE_PERMISSION' })
     if (isFsError(error, 'EROFS')) return reply.code(403).send({ message: 'Storage is mounted read-only. Enable Read only for this target.', code: 'STORAGE_READ_ONLY' })
-    if (error instanceof Error && 'code' in error && String(error.code).startsWith('SQLITE_CONSTRAINT')) return reply.code(409).send({ message: 'This account or destination already exists', code: 'CONFLICT' })
     if (error instanceof Error && 'errcode' in error && typeof error.errcode === 'number' && (error.errcode & 255) === 19) return reply.code(409).send({ message: 'This account or destination already exists', code: 'CONFLICT' })
     const status = error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
     if (status >= 500) request.log.error(error)
@@ -283,10 +282,25 @@ export async function createApp(options: AppOptions = {}) {
   app.post<{ Params: { targetId: string } }>('/api/targets/:targetId/files/directories', async request => {
     const targetId = idSchema.parse(request.params.targetId)
     const user = targets.access(requireUser(request), targetId), storage = await targets.backend(targetId); requirePermission(user, 'create')
-    const body = z.object({ directory: z.string(), name: z.string() }).strict().parse(request.body)
+    const body = z.object({ directory: z.string(), name: z.string(), existOk: z.boolean().optional() }).strict().parse(request.body)
     const path = posix.join(scopedPath(user, body.directory), validName(body.name))
-    await mutate(targetId, async () => { checkActivePath(targetId, path); await storage.mkdir(path, targetGuard(request, user, 'create')) })
-    store.audit(user.username, 'file.mkdir', path, targetId)
+    const authorize = targetGuard(request, user, 'create')
+    const existingDirectory = async () => {
+      const entry = await storage.stat(path).catch(error => { if (isFsError(error, 'ENOENT')) return null; throw error })
+      authorize()
+      if (!entry) return false
+      if (entry.kind !== 'directory') throw new HttpError(409, 'A file already exists at this folder path.', 'DESTINATION_EXISTS')
+      return true
+    }
+    const created = await mutate(targetId, async () => {
+      // Reusing a directory does not mutate it, even when it contains active transfers or shares.
+      if (body.existOk && await existingDirectory()) return false
+      checkActivePath(targetId, path)
+      try { await storage.mkdir(path, authorize) }
+      catch (error) { if (body.existOk && isFsError(error, 'EEXIST') && await existingDirectory()) return false; throw error }
+      return true
+    })
+    if (created) store.audit(user.username, 'file.mkdir', path, targetId)
     return { ok: true }
   })
   app.patch<{ Params: { targetId: string } }>('/api/targets/:targetId/files', async request => {

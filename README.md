@@ -30,17 +30,18 @@ See [deployment and configuration](docs/deployment.md) for native services, cont
 
 - First-run setup, scrypt password hashes, revocable sessions, login throttling, and server-side permission enforcement.
 - Administrator console for named local, S3, FTP/FTPS and SFTP targets; encrypted connection secrets, connection checks, read-only controls, and independent user grants and home folders per target.
-- Files and folders, list/grid views, search, sorting, rename, empty-folder/file deletion, text/image previews, and HTTP byte-range downloads.
+- Targets as the first level of My files, with target and folder breadcrumbs; files and folders, list/grid views, search, sorting, rename, empty-folder/file deletion, text/image previews, and HTTP byte-range downloads.
 - Streamed TAR downloads of folders and mixed selections, including empty directories, without temporary archives. Unfinished uploads and private state are excluded.
 - Light, dark and system themes; compact and comfortable layouts; a file inspector, context menus, keyboard shortcuts, and a command palette.
 - Resumable uploads up to 1 TiB per file, subject to each target's part-count limit, with SHA-256 manifests and sequential 100 MiB chunks. Each current chunk can use one, two, or four connections.
+- Folder selection and drag-and-drop preserve nested paths, with one resumable transfer per file. Folder uploads require upload and create-folder permissions; empty folders are omitted.
 - Storage adapters with explicit capabilities: local filesystem, S3-compatible object stores, FTP/FTPS and pinned-host-key SFTP. Local staging supports different mounted filesystems; remote uploads retain at most one local chunk.
 - Read-only targets and mounts. Every route, file operation, upload and permission is qualified by target identity. CI publishes signed AMD64/ARM64 container images with all runtime dependencies, including Samba, after checks pass.
 - Optional authenticated SMB3 directory shares, managed in Settings, with per-user credentials, read-only access and live permission revocation. See [network sharing](docs/network-shares.md).
 
 Symlinks, traversal segments, special files and reserved `.filebrowser-*` paths are inaccessible through the file API. Native names containing backslashes or control characters are skipped in listings and archives. Users see each target’s independently assigned folder as `/`. Browsing and text previews use the read permission; image previews use the download permission. Upload, create-folder, rename and delete permissions are controlled separately.
 
-See the [feature comparison](docs/feature-parity.md). Folder archives require download permission; individual file downloads continue to support byte ranges.
+See the [complete feature list](FEATURE_LIST.md). Folder archives require download permission; individual file downloads continue to support byte ranges.
 
 ## Durable uploads
 
@@ -68,9 +69,7 @@ npm run test:e2e
 
 [The testing guide](docs/testing.md) explains the container stress suite and mounted-filesystem fixtures. Verification output is generated locally and excluded from source releases. Application state uses SQLite and needs no database service or generated ORM client.
 
-See [multi-target verification](docs/storage-targets-verification.md) for container results and screenshots, and [the cleanup review](docs/cleanup-verification.md) for the subsequent source and dependency audit.
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for development conventions, [SECURITY.md](SECURITY.md) for private vulnerability reporting, and [the release guide](docs/releasing.md) for portable source/runtime packaging. Version history is in [CHANGELOG.md](CHANGELOG.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for development conventions, [SECURITY.md](SECURITY.md) for private vulnerability reporting, and [the release guide](docs/releasing.md) for portable source/runtime packaging. Planned release changes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Project structure
 

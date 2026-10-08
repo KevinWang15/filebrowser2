@@ -12,6 +12,7 @@ import { Toasts, type Toast } from './components/Toasts'
 import { Tooltips } from './components/Tooltips'
 import { Avatar, Kbd, Logo, Progress, Spinner } from './components/ui'
 import { formatBytes, plural } from './lib/format'
+import type { UploadSource } from './lib/upload-files'
 import { shortcutBlocked } from './lib/modalStack'
 import { NotifyContext } from './lib/notify'
 import { isRunning, STATE_LABELS, transferProgress } from './lib/transfers'
@@ -109,10 +110,11 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
 
   const go = useCallback((next: View, path?: string) => navigate({ view: next, targetId: target?.id ?? null, path: next === 'files' ? path ?? '/' : '/' }), [navigate, target?.id])
   const goFiles = () => { setOverlay(null); navigate({ view: 'files', targetId: null, path: '/' }) }
-  const addFiles = useCallback((files: File[], directory: string, fromDialog = false) => {
+  const addFiles = useCallback((files: UploadSource[], directory: string, fromDialog = false) => {
     if (!files.length) return
     if (!target || !can(access, 'upload')) return
-    engine.add(files, target, directory)
+    if (files.some(source => source.relativePath.includes('/')) && !can(access, 'create')) { notify('You need create permission to upload folders.', true); return }
+    try { engine.add(files, target, directory) } catch (error) { notify(errorMessage(error), true); return }
     setOverlay(null)
     if (fromDialog) go('transfers')
     else notify(`Uploading ${plural(files.length, 'file')} to ${directory === '/' ? target.name : directory}.`)
@@ -233,7 +235,7 @@ function Workspace({ bootstrap, user, onAuthChanged }: { bootstrap: Bootstrap; u
           <span className="status-item mono dim hide-sm">v{system?.version ?? VERSION}</span>
         </footer>
       </main>
-      {overlay === 'upload' && target && access && can(access, 'upload') && <UploadDialog targetName={target.name} directory={folder}
+      {overlay === 'upload' && target && access && can(access, 'upload') && <UploadDialog targetName={target.name} directory={folder} allowFolders={can(access, 'create')}
         limits={{ ...bootstrap.upload, maxFileSize: Math.min(bootstrap.upload.maxFileSize, target.capabilities.maxChunks * bootstrap.upload.chunkSize) }} connections={connections} onConnections={setConnections}
         onFiles={files => addFiles(files, folder, true)} onClose={() => setOverlay(null)} />}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={() => setOverlay(null)} onOpenPath={target ? path => go('files', '/' + path.split('/').filter(Boolean).join('/')) : undefined} />}

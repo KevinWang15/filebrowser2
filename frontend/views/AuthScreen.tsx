@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { IconArrowLeft, IconArrowRight, IconCheck, IconEye, IconEyeOff, IconLock, IconShieldCheck } from '@tabler/icons-react'
 import type { TargetConnection, TargetType } from '@/shared/types'
-import { ConnectionFields } from './TargetsView'
+import { ConnectionFields } from '../components/ConnectionFields'
 import { emptyConnection, TARGET_LABELS } from '../lib/target-connections'
 import { api, errorMessage } from '../api'
 import { Logo, Spinner } from '../components/ui'

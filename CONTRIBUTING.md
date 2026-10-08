@@ -6,6 +6,8 @@ Before proposing a change, run `npm run check`. UI changes should also be checke
 
 Open an issue for a reproducible bug or a proposed feature. Include the application version, runtime, filesystem type, configuration with secrets removed, and clear reproduction steps. Keep pull requests focused, explain the resulting behavior, and describe the checks performed.
 
+The project is unreleased and maintains one current API, state schema and deployment layout. Do not add migrations, aliases or compatibility adapters for previous implementations. Update consumers, tests, fixtures and documentation together when changing behavior. Keep verification reports in the ignored `verification/` directory.
+
 Upload correctness takes priority over throughput. Preserve ordered commits, whole-chunk rollback, the durable offset, destination reservations, scoped permissions, and recovery after a process crash. A storage adapter must advertise only capabilities it actually provides. See [the upload protocol](docs/upload-protocol.md).
 
 Do not commit credentials, user files, account databases, browser traces, deployment reports, or machine-specific configurations. Verification output belongs in the ignored `verification/` directory.

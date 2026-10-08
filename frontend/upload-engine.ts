@@ -1,6 +1,7 @@
 import { type Bootstrap, type Target, type ChunkAttempt, type UploadSession } from '@/shared/types'
 import { api, ApiError, errorMessage } from './api'
 import { formatBytes } from './lib/format'
+import { uploadDestination, type UploadSource, type UploadFolder } from './lib/upload-files'
 
 export type TransferState = 'queued' | 'hashing' | 'uploading' | 'verifying' | 'retrying' | 'paused' | 'needs-file' | 'completed' | 'failed'
 export interface Transfer {
@@ -34,6 +35,7 @@ export class UploadEngine {
   private disposed = false
   private controllers = new Map<string, AbortController>()
   private manifests = new Map<string, { file: File; hashes: string[]; manifestHash: string }>()
+  private folders = new Map<string, UploadFolder[]>()
   connections: 1 | 2 | 4 = 1
   onComplete: (task: Transfer) => void = () => {}
   activate() { this.disposed = false }
@@ -52,15 +54,20 @@ export class UploadEngine {
     }
     this.notify()
   }
-  add(files: File[], target: Target, directory: string) {
-    for (const file of files) {
+  add(sources: UploadSource[], target: Target, directory: string) {
+    const destinations = sources.map(source => uploadDestination(source, directory))
+    const added: Transfer[] = []
+    for (const { file, directory: destination, folders } of destinations) {
       const count = Math.ceil(file.size / this.limits.chunkSize)
       const maximum = Math.min(this.limits.maxFileSize, target.capabilities.maxChunks * this.limits.chunkSize)
       const error = file.size > maximum ? `The maximum file size for this target is ${formatBytes(maximum)}` : count > 1 && this.limits.chunkSize < target.capabilities.minChunkSize ? `This target requires chunks of at least ${formatBytes(target.capabilities.minChunkSize)}. Ask an administrator to update the server chunk size.` : undefined
-      this.tasks.unshift({ id: localId(), targetId: target.id, name: file.name, directory, size: file.size, file,
+      const id = localId()
+      this.folders.set(id, folders)
+      added.push({ id, targetId: target.id, name: file.name, directory: destination, size: file.size, file,
         state: error ? 'failed' : 'queued', error,
         hashedBytes: 0, sentBytes: 0, committedBytes: 0, speed: 0 })
     }
+    this.tasks = this.tasks.concat(added)
     this.notify(); void this.pump()
   }
   resume(id: string, file?: File) {
@@ -92,10 +99,10 @@ export class UploadEngine {
         }
       }
     }
-    this.tasks = this.tasks.filter(t => t !== task); this.manifests.delete(id); this.notify()
+    this.tasks = this.tasks.filter(t => t !== task); this.manifests.delete(id); this.folders.delete(id); this.notify()
   }
   clearCompleted() { this.tasks = this.tasks.filter(t => t.state !== 'completed'); this.notify() }
-  dispose() { this.disposed = true; for (const controller of this.controllers.values()) controller.abort(); this.listeners.clear(); this.manifests.clear() }
+  dispose() { this.disposed = true; for (const controller of this.controllers.values()) controller.abort(); this.listeners.clear(); this.manifests.clear(); this.folders.clear() }
   private async pump() {
     if (this.busy || this.disposed) return
     this.busy = true
@@ -157,6 +164,17 @@ export class UploadEngine {
     })
   }
   private async run(task: Transfer, signal: AbortSignal) {
+    if (!task.session) for (const folder of this.folders.get(task.id) ?? []) {
+      for (let retry = 0; ; retry++) {
+        try {
+          await api(`/targets/${task.targetId}/files/directories`, { method: 'POST', body: { ...folder, existOk: true }, signal })
+          break
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.code !== 'STORAGE_BUSY' || retry >= 8) throw error
+          await delay(Math.min(2000, 100 * 2 ** retry), signal)
+        }
+      }
+    }
     task.state = 'hashing'; task.hashedBytes = 0; task.sentBytes = 0; this.notify()
     const cached = this.manifests.get(task.id)
     const result = cached && cached.file === task.file ? cached : await this.hash(task, signal)
@@ -220,6 +238,6 @@ export class UploadEngine {
         await delay(Math.min(30_000, 1000 * 2 ** attempt), signal)
       }
     }
-    task.session = session; task.state = 'completed'; task.committedBytes = task.size; task.sentBytes = 0; task.speed = 0; task.file = undefined; this.manifests.delete(task.id); this.notify(); this.onComplete({ ...task })
+    task.session = session; task.state = 'completed'; task.committedBytes = task.size; task.sentBytes = 0; task.speed = 0; task.file = undefined; this.manifests.delete(task.id); this.folders.delete(task.id); this.notify(); this.onComplete({ ...task })
   }
 }

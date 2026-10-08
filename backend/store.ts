@@ -36,59 +36,56 @@ export class Store {
     chmodSync(join(directory, 'instance.sqlite'), 0o600)
     try { this.instanceLock.exec('PRAGMA busy_timeout = 0; BEGIN EXCLUSIVE;') }
     catch (error) { this.instanceLock.close(); throw new Error('Another Filebrowser process owns this state directory', { cause: error }) }
-    this.db = new DatabaseSync(join(directory, 'filebrowser.sqlite'))
-    chmodSync(join(directory, 'filebrowser.sqlite'), 0o600)
-    const version = (this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version
-    const existing = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").get()
-    if ((existing && version !== 2) || (version !== 0 && version !== 2)) {
-      this.close()
-      throw new Error('This database uses an unsupported schema. Multi-target installations require a fresh state directory; no automatic migration is performed.')
-    }
-    this.db.exec(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA synchronous = FULL;
-      PRAGMA foreign_keys = ON;
-      PRAGMA busy_timeout = 5000;
-      CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS users (
+    let database: DatabaseSync | undefined
+    try {
+      database = new DatabaseSync(join(directory, 'filebrowser.sqlite'))
+      this.db = database
+      chmodSync(join(directory, 'filebrowser.sqlite'), 0o600)
+      const version = (this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version
+      const populated = this.db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").get()
+      if ((version === 0 && populated) || (version !== 0 && version !== 2)) throw new Error('This database uses an unsupported schema')
+      this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;')
+      if (version === 0) this.transaction(() => this.db.exec(`
+      CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE users (
         id TEXT PRIMARY KEY, username TEXT UNIQUE COLLATE NOCASE NOT NULL,
         password_hash TEXT NOT NULL, role TEXT NOT NULL, disabled INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS targets (
+      CREATE TABLE targets (
         id TEXT PRIMARY KEY, name TEXT UNIQUE COLLATE NOCASE NOT NULL, type TEXT NOT NULL,
         connection TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
         read_only INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS target_grants (
+      CREATE TABLE target_grants (
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         target_id TEXT NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
         scope TEXT NOT NULL, permissions TEXT NOT NULL, PRIMARY KEY(user_id,target_id)
       );
-      CREATE TABLE IF NOT EXISTS sessions (
+      CREATE TABLE sessions (
         hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         expires_at INTEGER NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS uploads (
+      CREATE TABLE uploads (
         id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), target_id TEXT NOT NULL REFERENCES targets(id), path TEXT NOT NULL,
         manifest TEXT NOT NULL, manifest_hash TEXT NOT NULL, next_chunk INTEGER NOT NULL DEFAULT 0,
         committed_bytes INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL,
         storage_token TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, error TEXT
       );
-      CREATE UNIQUE INDEX IF NOT EXISTS upload_target ON uploads(target_id,path)
+      CREATE UNIQUE INDEX upload_target ON uploads(target_id,path)
         WHERE status IN ('uploading', 'publishing');
-      CREATE INDEX IF NOT EXISTS uploads_user ON uploads(user_id);
-      CREATE TABLE IF NOT EXISTS audit (
+      CREATE INDEX uploads_user ON uploads(user_id);
+      CREATE TABLE audit (
         id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT NOT NULL, action TEXT NOT NULL,
         detail TEXT NOT NULL, target_id TEXT REFERENCES targets(id) ON DELETE SET NULL, created_at TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS network_share_accounts (
+      CREATE TABLE network_share_accounts (
         sequence INTEGER PRIMARY KEY AUTOINCREMENT,
         protocol TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id),
         username TEXT UNIQUE NOT NULL, secret TEXT NOT NULL,
         credentials_valid INTEGER NOT NULL DEFAULT 1,
         UNIQUE(protocol,user_id)
       );
-      CREATE TABLE IF NOT EXISTS network_shares (
+      CREATE TABLE network_shares (
         sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL,
         protocol TEXT NOT NULL, name TEXT UNIQUE COLLATE NOCASE NOT NULL,
         user_id TEXT NOT NULL REFERENCES users(id), target_id TEXT NOT NULL REFERENCES targets(id), path TEXT NOT NULL,
@@ -97,8 +94,13 @@ export class Store {
         FOREIGN KEY(protocol,user_id) REFERENCES network_share_accounts(protocol,user_id)
       );
       PRAGMA user_version = 2;
-    `)
-    this.db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now())
+      `))
+      this.db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now())
+    } catch (error) {
+      database?.close()
+      this.instanceLock.close()
+      throw error
+    }
   }
 
   transaction<T>(fn: () => T): T {

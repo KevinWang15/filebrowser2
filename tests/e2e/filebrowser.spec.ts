@@ -97,6 +97,15 @@ test('setup, file operations, worker hashing, reload resume, scoped users, and m
   await expect(page.getByRole('heading', { name: 'No matching targets' })).toBeVisible()
   await page.getByRole('button', { name: 'Clear filter' }).click()
   await page.screenshot({ path: testInfo.outputPath('targets.png'), fullPage: true })
+  for (const width of [768, 390, 320]) {
+    await page.setViewportSize({ width, height: 980 })
+    await targetList.getByRole('button', { name: 'Local', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Local', exact: true })).toBeVisible()
+    await page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).getByRole('button', { name: 'My files', exact: true }).click()
+    await expect(targetList.getByRole('button')).toHaveCount(2)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+  await page.setViewportSize({ width: 1440, height: 980 })
   await targetList.getByRole('button', { name: 'Archive', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Archive', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'archive-only.txt', exact: true })).toBeVisible()

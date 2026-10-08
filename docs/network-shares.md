@@ -16,7 +16,7 @@ Both services use the same complete image, which contains the web application, i
 FB_SMB_BIND_ADDRESS=0.0.0.0 docker compose -f compose.yml -f compose.smb.yml up -d --no-build --pull always
 ```
 
-Set `FB_IMAGE` to use a specific release tag or digest for both services. The web process runs as `node`; the companion runs `node agent.mjs` as root to manage protocol accounts and start Samba. Its file reads use the application's filesystem identity, and the shared file volume remains mounted read-only.
+Set `FB_IMAGE` to use a specific release tag or digest for both services. The web process runs as `node`; the companion runs `node dist/server/samba-agent.js` as root to manage protocol accounts and start Samba. Its file reads use the application's filesystem identity, and the shared file volume remains mounted read-only.
 
 The web interface remains on the address configured in `compose.yml`. SMB listens on TCP port 445. Omitting `FB_SMB_BIND_ADDRESS` binds the published SMB port to `127.0.0.1`; specify the server's LAN address or `0.0.0.0` for desktop clients. The companion serves the `files` volume through a physical read-only mount. It has no Docker socket or host network mount.
 
@@ -50,9 +50,7 @@ Remove directory shares before renaming or deleting their roots through the web 
 
 Remove unneeded shares while the companion is available so it can acknowledge revocation. If the companion is offline, removal disables the grant and asks for a retry after reconnection; its directory remains protected from rename/deletion until removal is acknowledged.
 
-## Other protocols
-
-SMB is the first implemented transport. APFS is an on-disk filesystem; AFP is Apple's network protocol. Modern macOS supports SMB. AFP can be added through a separate Netatalk provider and companion when required for legacy clients. SFTP or WebDAV would likewise be distinct providers, sharing the authorization and lifecycle model. [Apple client documentation](https://support.apple.com/guide/mac-help/connect-to-shared-computers-and-servers-mchlp1140/mac), [Netatalk containers](https://netatalk.io/containers).
+## Storage integration and licenses
 
 `StorageBackend` remains the virtual file API. `DirectoryExportBackend` adds a local directory identity capability for native protocol services; remote storage does not pretend to support native directory exports. Share definitions and protocol accounts are separate from storage adapters, and protocol credentials are managed per user.
 

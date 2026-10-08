@@ -1,4 +1,4 @@
-import { verificationTargetId } from './verification-targets.mjs'
+import { openTarget, verificationTargetId } from './verification-targets.mjs'
 /* global document */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
@@ -76,6 +76,7 @@ try {
   targetId = verificationTargetId(readonlyBootstrap)
   assert.equal(readonlyBootstrap.targets.find(target => target.id === targetId).readOnly, true)
   check('first-run setup writes account state while the file mount is read-only')
+  await openTarget(page)
   const rootNames = (await readdir('/verify-files')).sort()
   for (const label of ['New folder', 'Upload files']) await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Read-only demo', exact: true }).click()

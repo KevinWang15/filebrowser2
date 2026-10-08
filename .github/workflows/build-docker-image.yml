@@ -71,7 +71,7 @@ jobs:
               smbd --version
               testparm --version
               test -s /etc/ssl/certs/ca-certificates.crt
-              test -s /app/agent.mjs
+              test -s /app/dist/server/samba-agent.js
               node --input-type=module -e "import { DatabaseSync } from \"node:sqlite\"; const db = new DatabaseSync(\":memory:\"); db.close();"
             '
             container_id=$(docker run -d --platform "$platform" "${IMAGE}@${platform_digest}")

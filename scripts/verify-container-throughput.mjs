@@ -25,7 +25,7 @@ try {
   })
   assert.equal(login.status(), 200)
   targetId = verificationTargetId(await(await context.request.get(url+'/api/bootstrap')).json())
-  await page.goto(url + '/#/transfers')
+  await page.goto(url + '/#/transfers/' + targetId)
   await page.route('**/api/uploads/*/attempts/*/parts/*', async route => {
     await delay([0, 25, 700, 50, 350][requests++ % 5])
     await route.continue()

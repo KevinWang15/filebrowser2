@@ -48,4 +48,4 @@ SMB shares reference a target plus path and inherit their owner's grant. The Sam
 
 ## State format
 
-This is a clean target-aware state schema. Existing single-filesystem databases are rejected. There is no migration layer, implicit local target, global read-only flag, storage alias or old file API. Back up old state separately, resolve unfinished uploads using the old version, then create fresh state and explicit targets for the existing files.
+The application uses one current state schema and target-qualified API. It does not migrate state or provide alternate configuration or API aliases. Keep the state database, encryption key and unfinished upload stages together when backing up or restoring an installation.

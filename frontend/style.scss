@@ -524,8 +524,8 @@ button.link { display: inline; }
 
 .breadcrumbs { display: flex; align-items: center; gap: 4px; min-width: 0; margin-left: -8px;
   ol { display: flex; align-items: center; min-width: 0; overflow-x: auto; }
-  li { display: flex; align-items: center; min-width: 0; &:not([aria-current]) { flex-shrink: 1; } }
-  li[aria-current] { flex-shrink: 0; max-width: 46ch; }
+  li { display: flex; align-items: center; min-width: 0; flex-shrink: 0; }
+  li[aria-current] { max-width: 46ch; }
 }
 .crumb {
   display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px; border-radius: 5px; max-width: 22ch;
@@ -550,6 +550,8 @@ button.link { display: inline; }
 // ---------------------------------------------------------------- files
 
 .files-view { position: relative; }
+.files-view > .page-header { flex-wrap: wrap; }
+.files-view .breadcrumbs { flex: 1 1 240px; }
 .files-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); flex: 1; min-height: 0;
   &.has-inspector { grid-template-columns: minmax(0, 1fr) var(--inspector); } }
 .files-scroll { overflow: auto; min-height: 0; position: relative; outline: none; }
@@ -905,8 +907,7 @@ tr:hover .row-actions, tr.is-selected .row-actions, tr:focus-within .row-actions
   .page-header { padding: 6px 10px 6px 14px; min-height: 46px; }
   .page-sub { display: none; }
   .breadcrumbs { margin-left: -6px; .crumb { max-width: 9ch; } li[aria-current] { max-width: 16ch; } }
-  .files-view > .page-header { flex-wrap: wrap; }
-  .files-view .breadcrumbs { width: 100%; }
+  .files-view .breadcrumbs { flex-basis: 100%; }
   .files-view .page-actions { width: 100%; .search-field { flex: 1; } }
   .search-field { width: 120px; .kbd { display: none; } }
   .page-actions .btn { padding: 0 8px; }

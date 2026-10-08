@@ -19,7 +19,7 @@ Archive checks cover binary and Unicode contents, empty directories, deduplicate
 
 ## Mounted filesystems
 
-`tests/storage-mounts.test.js` requires two actual devices: set `FB_TEST_STORAGE_ROOT` to a disposable directory and `FB_TEST_MOUNT_PATH` to a mounted directory beneath it. The container runner supplies a tmpfs mount automatically. Coverage includes device-local staging, four-part chunks, corruption rollback, orphan cleanup, unavailable-device retention and interrupted publication/cancellation.
+`tests/storage-mounts.test.js` requires actual mount boundaries: set `FB_TEST_STORAGE_ROOT` to a disposable directory and `FB_TEST_MOUNT_PATH` to a mounted directory beneath it. The container runner supplies a tmpfs mount automatically. Set `FB_TEST_BIND_MOUNT=true` to exercise a separate bind mount that shares its device with the root; CI checks both layouts. Coverage includes device-local staging, four-part chunks, corruption rollback, orphan cleanup, unavailable-device retention and interrupted publication/cancellation.
 
 ## Production-container checks
 
@@ -73,14 +73,14 @@ After the upload and disk checks, run the API permission matrix, then the browse
 docker compose -p filebrowser-verify -f compose.verify.yml run --rm runner node scripts/verify-container-api.mjs
 docker compose -p filebrowser-verify -f compose.verify.yml run --rm runner node scripts/verify-container-browser.mjs finish
 docker compose -p filebrowser-verify -f compose.verify.yml run --rm runner node scripts/verify-container-browser-faults.mjs
-docker compose -p filebrowser-verify -f compose.verify.yml run --rm runner node scripts/verify-container-redesign.mjs
+docker compose -p filebrowser-verify -f compose.verify.yml run --rm runner node scripts/verify-container-ui.mjs
 docker compose -p filebrowser-verify -f compose.verify.yml up -d readonly
 docker compose -p filebrowser-verify -f compose.verify.yml run --rm runner node scripts/verify-container-readonly.mjs
 docker compose -p filebrowser-verify -f compose.verify.yml run --rm runner node scripts/verify-container-throughput.mjs
 docker compose -p filebrowser-verify -f compose.verify.yml stop
 ```
 
-The finish phase changes a fixture password, so it follows the other API/upload checks. Fault/redesign browser scripts default to that changed password; `FB_VERIFY_ADMIN_PASSWORD` overrides it. The 100 KiB configuration makes a 1 GiB file use 10,486 sequential chunks. Do not use the temporary verification limit for a 200 GB production transfer.
+The finish phase changes a fixture password, so it follows the other API/upload checks. Fault/UI browser scripts default to that changed password; `FB_VERIFY_ADMIN_PASSWORD` overrides it. The 100 KiB configuration makes a 1 GiB file use 10,486 sequential chunks. Do not use the temporary verification limit for a 200 GB production transfer.
 
 The read-only script runs after the API and general browser checks, seeds a small download fixture through the writable app, and then performs administrator setup against the separate read-only container. Run it while other scripts are not mutating that volume, so its final comparison can assert that storage remained unchanged. Its file volume is physically mounted read-only; account state uses writable tmpfs. It checks native file/TAR downloads, range and HEAD metadata, every file mutation endpoint, hidden write controls and user administration. The throughput script then varies real upload request delays and checks that the summary height remains fixed at desktop, tablet and mobile widths.
 

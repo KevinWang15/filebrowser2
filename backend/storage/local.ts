@@ -31,8 +31,6 @@ function sameFilesystem(a: Awaited<ReturnType<typeof directoryFilesystem>>, b: A
 }
 
 export class LocalStorage implements StorageBackend, SequentialUploadBackend, DirectoryExportBackend {
-  readonly name = 'Local storage'
-  readonly type = 'local'
   readonly capabilities: StorageBackend['capabilities']
   readonly root: string
   readonly staging: string

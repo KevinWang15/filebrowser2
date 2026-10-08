@@ -2,7 +2,7 @@
 
 Version `0.1.0` is the initial release candidate. Check the changelog, package version, supported Node version, license and notices before packaging. `package.json` is the version source for the API, frontend and release artifacts; rebuild both bundles after bumping it.
 
-The candidate's checks are recorded in [storage target verification](storage-targets-verification.md) and [the cleanup review](cleanup-verification.md).
+Run the [standard, storage and container checks](testing.md) against the release candidate; save results under the ignored `verification/` directory.
 
 ```sh
 npm ci

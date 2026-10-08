@@ -41,15 +41,15 @@ test('relocated production bundle serves setup, authenticated files, static asse
   assert.equal(code,0,output);assert.equal(signal,null)
 })
 
-test('production entry rejects removed storage shortcuts without creating storage', {timeout:30000},async t=>{
+test('production entry rejects command-line arguments before creating state', {timeout:30000},async t=>{
   const root=await mkdtemp(join(tmpdir(),'filebrowser-cli-'))
   t.after(()=>rm(root,{recursive:true,force:true}))
-  for(const config of [{args:['/unused']},{env:{SERVE_PATH:'/unused'}},{env:{FB_STORAGE_ROOT:'/unused'}},{env:{FB_READ_ONLY:'true'}}]) {
-    const child=spawn(process.execPath,[join(project,'dist/server/server.js'),...(config.args??[])],{cwd:root,env:{...process.env,FB_STATE_DIR:join(root,'state'),...config.env},stdio:['ignore','pipe','pipe']})
+  for(const args of [['--unknown'],['unexpected','arguments']]) {
+    const child=spawn(process.execPath,[join(project,'dist/server/server.js'),...args],{cwd:root,env:{...process.env,FB_STATE_DIR:join(root,'state')},stdio:['ignore','pipe','pipe']})
     const closed=once(child,'close');let logs=''
     child.stdout.on('data',chunk=>{logs+=chunk});child.stderr.on('data',chunk=>{logs+=chunk})
     const [code]=await closed
-    assert.equal(code,1,logs);assert.match(logs,/not supported|Global storage configuration/)
+    assert.equal(code,1,logs);assert.match(logs,/Command-line arguments are not supported/)
     await assert.rejects(access(join(root,'state')))
   }
 })

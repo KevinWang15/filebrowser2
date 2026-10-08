@@ -207,7 +207,7 @@ export class Targets {
           const backend = new LocalStorage(connection.root, this.publishFault, !!row.read_only)
           await backend.init(); await backend.lock(); return backend
         }
-        const backend = connection.type === 's3' ? new S3Storage(row.name, connection, directory, !!row.read_only) : new FileRemoteStorage(row.name, connection, directory, !!row.read_only)
+        const backend = connection.type === 's3' ? new S3Storage(connection, directory, !!row.read_only) : new FileRemoteStorage(connection, directory, !!row.read_only)
         if (!row.read_only) {
           try { await backend.orphanStages(new Set(this.store.retainedUploads().filter(upload => upload.target_id === id).map(upload => upload.id))) }
           catch (error) { backend.close(); throw error }
@@ -219,7 +219,7 @@ export class Targets {
     }
     return pending
   }
-  async release(id: string) { const pending = this.backends.get(id); this.backends.delete(id); if (pending) { try { (await pending).close() } catch { /* Failed initialization already closed its resources. */ } } }
+  private async release(id: string) { const pending = this.backends.get(id); this.backends.delete(id); if (pending) { try { (await pending).close() } catch { /* Failed initialization already closed its resources. */ } } }
   async close() { for (const id of this.backends.keys()) await this.release(id); this.key.fill(0) }
   localRoot(id: string) { const connection = this.connection(this.row(id)); return connection.type === 'local' ? resolve(connection.root) : null }
 }

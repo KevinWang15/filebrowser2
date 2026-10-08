@@ -19,17 +19,27 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Prepare mounted-filesystem fixture
+      - name: Prepare mounted-filesystem fixtures
         run: |
           mkdir -p "${RUNNER_TEMP}/filebrowser-files/external"
           sudo mount -t tmpfs -o size=64m,mode=0777 tmpfs "${RUNNER_TEMP}/filebrowser-files/external"
+          mkdir -p "${RUNNER_TEMP}/filebrowser-bind/external" "${RUNNER_TEMP}/filebrowser-bind-source"
+          sudo mount --bind "${RUNNER_TEMP}/filebrowser-bind-source" "${RUNNER_TEMP}/filebrowser-bind/external"
       - run: npm run check
         env:
           FB_TEST_STORAGE_ROOT: ${{ runner.temp }}/filebrowser-files
           FB_TEST_MOUNT_PATH: ${{ runner.temp }}/filebrowser-files/external
-      - name: Remove mounted fixture
+      - name: Check uploads across same-device bind mounts
+        run: node --import tsx --test tests/storage-mounts.test.js
+        env:
+          FB_TEST_STORAGE_ROOT: ${{ runner.temp }}/filebrowser-bind
+          FB_TEST_MOUNT_PATH: ${{ runner.temp }}/filebrowser-bind/external
+          FB_TEST_BIND_MOUNT: 'true'
+      - name: Remove mounted fixtures
         if: always()
-        run: sudo umount "${RUNNER_TEMP}/filebrowser-files/external" || true
+        run: |
+          sudo umount "${RUNNER_TEMP}/filebrowser-files/external" || true
+          sudo umount "${RUNNER_TEMP}/filebrowser-bind/external" || true
       - name: Install browser
         run: npx playwright install --with-deps chromium
       - name: Check browser workflow

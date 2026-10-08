@@ -85,7 +85,7 @@ Keep private state in a reserved directory when browsing a filesystem that conta
 
 Connections and grants live in SQLite. Target secrets are encrypted with the private `targets.key` in the state directory; preserve that key with the database. SFTP requires a pinned SHA-256 server host key and OpenSSH fsync support for upload. FTPS verifies normal certificate trust; install private CA certificates through Node's `NODE_EXTRA_CA_CERTS` when needed. Never disable TLS verification. S3 connections specify bucket, region, optional endpoint/prefix and credentials. See [target semantics](storage-targets.md).
 
-This release uses a fresh target-aware state schema. Older databases are rejected with an explicit error; there are no migrations, global storage aliases or positional storage arguments. Export existing files separately and initialize a fresh private state directory, then explicitly add targets that point at those files. Preserve old private state and unfinished uploads until they have been safely resolved; no automatic conversion is performed.
+The application initializes its current schema only in an empty database. Existing state must use that schema; startup does not add missing tables or migrate state. Configure storage targets through setup or administration and server options through environment variables.
 
 ## HTTPS reverse proxy
 

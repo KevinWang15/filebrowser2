@@ -43,14 +43,14 @@ class RestartFTP extends FTP {
 
 /** Offset-based uploads to a private remote stage, with read-back verification. */
 export class FileRemoteStorage implements StorageBackend, SequentialUploadBackend {
-  readonly type
+  private readonly type
   readonly capabilities
   private chunks: Chunks
   private closed = false
   private restored = new Set<string>()
   private idle: { client: SSH; sftp: SFTPWrapper; dead: boolean }[] = []
   private connections = new Set<SSH | FTP>()
-  constructor(readonly name: string, private connection: Connection, directory: string, readOnly: boolean) {
+  constructor(private connection: Connection, directory: string, readOnly: boolean) {
     this.type = connection.type; this.capabilities = capabilities(connection.type, readOnly); this.chunks = new Chunks(directory)
   }
   private writable() { if (this.capabilities.readOnly) throw new HttpError(403, 'Target is read-only', 'STORAGE_READ_ONLY') }

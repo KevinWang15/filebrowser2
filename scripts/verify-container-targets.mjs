@@ -1,5 +1,6 @@
 /* global document, window */
 import assert from 'node:assert/strict'
+import { openTarget } from './verification-targets.mjs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { chromium, expect } from '@playwright/test'
@@ -64,7 +65,9 @@ try {
     await page.goto(url)
     await page.getByLabel('Workspace name').fill('Storage workspace')
     await page.getByRole('button', { name: 'Continue', exact: true }).click()
-    await fields(configurations[0]); await shot('01-setup-remote-target')
+    await fields(configurations[0])
+    await page.getByLabel('Read only', { exact: true }).uncheck()
+    await shot('01-setup-remote-target')
     await page.getByRole('button', { name: 'Continue', exact: true }).click()
     await page.getByLabel('Username', { exact: true }).fill('admin')
     await page.getByLabel('Password', { exact: true }).fill(password)
@@ -117,7 +120,8 @@ try {
     assert.deepEqual(await readFile(await (await downloading).path()), bytes)
     await shot('files-' + target.name.toLowerCase().replaceAll(' ', '-'))
     await page.reload(); await expect(page.getByRole('heading', { name: 'Shared documents', exact: true })).toBeVisible()
-    assert.equal(await page.getByLabel('Storage target', { exact: true }).inputValue(), target.id)
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).locator('li')).toHaveText(['My files', target.name, 'Shared documents'])
+    assert.ok(page.url().includes('#/files/' + target.id + '/Shared%20documents'))
   }
   check('identical target paths remain independent across actual browser uploads, native downloads and route reloads')
   await page.goto(`${url}/#/transfers/${object.id}`)
@@ -158,9 +162,10 @@ try {
   try {
     await body(await request('/auth/login', { username: 'target-reader', password }, 'POST', memberContext))
     const memberPage = await memberContext.newPage(); memberPage.on('pageerror', error => errors.push(error.message))
-    await memberPage.goto(`${url}/#/files/${object.id}`)
+    await memberPage.goto(url)
+    await expect(memberPage.getByRole('list', { name: 'Storage targets', exact: true }).getByRole('button')).toHaveCount(1)
+    await openTarget(memberPage, object.name)
     await expect(memberPage.getByRole('button', { name: 'same-name.txt', exact: true })).toBeVisible()
-    assert.equal(await memberPage.locator('#target-picker option:not([disabled])').count(), 1)
     await expect(memberPage.getByRole('button', { name: 'Upload files', exact: true })).toHaveCount(0)
     const local = targets.find(target => target.type === 'local')
     assert.equal((await request(`/targets/${local.id}/files`, undefined, 'GET', memberContext)).status(), 403)
@@ -171,14 +176,16 @@ try {
     assert.deepEqual(await body(await request('/targets', undefined, 'GET', memberContext)), [])
   } finally { await memberContext.close() }
   check('per-target browser grants scope the root, hide writes, reject other targets and revoke existing sessions')
-  await page.getByLabel('Storage target', { exact: true }).selectOption(object.id)
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 980 })
-    await expect(page.getByLabel('Storage target', { exact: true })).toBeVisible()
+    await openTarget(page, object.name)
+    await page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).getByRole('button', { name: 'My files', exact: true }).click()
+    await expect(page.getByRole('list', { name: 'Storage targets', exact: true }).getByRole('button')).toHaveCount(5)
+    await expect(page.getByRole('button', { name: object.name, exact: true })).toBeVisible()
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'Horizontal overflow at ' + width)
-    if (width === 390) await shot('07-mobile-target-switcher')
+    if (width === 390) await shot('07-mobile-target-list')
   }
-  check('target switcher remains usable without horizontal overflow at desktop, tablet and 390/320px mobile widths')
+  check('target list remains usable without horizontal overflow at desktop, tablet and 390/320px mobile widths')
   assert.deepEqual(errors, [])
   await writeFile(join(output, 'target-browser-results.json'), JSON.stringify({ status: 'PASS', results, errors, browserVersion: browser.version() }, null, 2))
 } catch (error) {

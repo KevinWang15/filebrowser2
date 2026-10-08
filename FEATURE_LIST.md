@@ -187,6 +187,8 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 ## Upload intake and integrity
 
 - Multi-file picker and drag-and-drop into the current folder, upload dialog, or an individual folder row/card.
+- Folder picker and recursive folder drag-and-drop preserve the selected root and nested paths, queueing each file as an independent resumable transfer; empty directories are omitted.
+- Folder uploads require upload and create-folder permissions, reuse existing directories, and preserve unrelated files and conflicting destinations.
 - Browser upload queue processes one file at a time while allowing one, two, or four parallel connections inside the current chunk.
 - Default 100 MiB chunks, configurable from 64 KiB to 100 MiB, with a general ceiling of 1 TiB and 12,000 chunks subject to target limits.
 - Frontend size/multipart checks before hashing and independent server-side manifest validation.
@@ -305,7 +307,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Configurable listen host/port, private state location, setup path suggestion, upload limits, public origin, Secure cookies, logging, and build commit.
 - HTTPS reverse-proxy configuration for same-origin checks, secure sessions, streamed upload bodies, and long transfers.
 - Graceful SIGINT/SIGTERM shutdown closes streams, attempts, targets, shares, and database locks.
-- Explicit rejection of obsolete global/positional storage configuration and unsupported database schemas; this release requires fresh target-aware state rather than automatic migration.
+- One current state schema, initialized only in an empty database, without schema migrations or alternate configuration/API aliases.
 - Portable runtime packaging includes compiled server/client assets, exact production dependency versions, licenses/notices, deployment guidance, service examples, source commit metadata, and server SHA-256.
 - Source archive packaging requires a clean committed tree, excludes Git history, rejects private/generated artifacts, and writes a SHA-256 sidecar.
 - CI calls a dedicated reusable image workflow after application/browser, native SMB, and remote storage checks; builds Linux AMD64/ARM64 images for main, develop, and version tags, and builds pull requests without publishing.

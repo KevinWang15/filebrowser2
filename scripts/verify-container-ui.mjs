@@ -1,4 +1,4 @@
-import { verificationTargetId } from './verification-targets.mjs'
+import { openTarget, verificationTargetId } from './verification-targets.mjs'
 /* global document, window */
 import assert from 'node:assert/strict'
 import { chromium, expect } from '@playwright/test'
@@ -40,10 +40,10 @@ try {
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('group', { name: 'Theme', exact: true }).getByRole('button', { name: 'Light', exact: true }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
-  await page.getByRole('button', { name: 'My files', exact: true }).first().click()
+  await openTarget(page)
   await page.getByRole('button', { name: 'List view', exact: true }).click()
   await expect(page.getByRole('button', { name: 'one-gib-verified.bin', exact: true })).toBeVisible()
-  await shot('28-redesigned-light-workspace')
+  await shot('28-ui-light-workspace')
   await page.getByLabel('Select one-gib-verified.bin', { exact: true }).check()
   if (await page.getByRole('button', { name: 'Toggle details' }).getAttribute('aria-pressed') === 'false') {
     await page.getByRole('button', { name: 'Toggle details' }).click()
@@ -57,12 +57,12 @@ try {
   await page.reload()
   await expect(page.getByRole('heading', { name: folder, exact: true })).toBeVisible()
   assert.ok(page.url().includes('#/files/' + targetId + '/' + encodeURIComponent(folder)))
-  await page.getByRole('button', { name: 'My files', exact: true }).last().click()
-  await expect(page.getByRole('heading', { name: 'My files', exact: true })).toBeVisible()
+  await page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).getByRole('button', { name: 'Local', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Local', exact: true })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: folder, exact: true })).toBeVisible()
   await page.goForward()
-  await expect(page.getByRole('heading', { name: 'My files', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Local', exact: true })).toBeVisible()
   check('encoded folder routes survive reload and browser back/forward navigation')
 
   await palette('/' + folder)
@@ -76,7 +76,7 @@ try {
   await page.getByLabel('Search files').fill(notes)
   await expect(page.locator('.file-row')).toHaveCount(1)
   await expect(page.getByRole('button', { name: notes, exact: true })).toBeVisible()
-  await page.getByLabel('Search files').fill('no-such-redesign-file')
+  await page.getByLabel('Search files').fill('no-such-ui-file')
   await expect(page.getByRole('heading', { name: 'No matches', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Clear filter', exact: true }).click()
   await expect(page.locator('.file-row')).toHaveCount(2)
@@ -98,10 +98,10 @@ try {
   await palette('Use dark theme')
   await page.keyboard.press('Enter')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  await shot('32-redesigned-dark-workspace')
+  await shot('32-ui-dark-workspace')
   await page.getByRole('button', { name: 'Grid view', exact: true }).click()
   await expect(page.locator('.file-card')).toHaveCount(2)
-  await shot('33-redesigned-dark-grid')
+  await shot('33-ui-dark-grid')
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(page.locator('.file-card')).toHaveCount(2)
@@ -114,24 +114,24 @@ try {
   await expect(page.locator('html')).toHaveAttribute('data-density', 'comfortable')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(page.getByText('100 KiB', { exact: true })).toBeVisible()
-  await shot('34-redesigned-dark-settings')
+  await shot('34-ui-dark-settings')
   check('settings theme and density persist while showing actual server upload limits')
 
   await page.getByRole('button', { name: 'Transfers', exact: true }).click()
   await page.getByRole('group', { name: 'Filter transfers' }).getByRole('button', { name: /^Completed/ }).click()
   await expect(page.locator('.transfer-row').first()).toBeVisible()
   assert.equal(await page.locator('.transfer-row:not(.is-completed)').count(), 0)
-  await shot('35-redesigned-dark-transfers')
+  await shot('35-ui-dark-transfers')
   await page.getByRole('button', { name: 'People & access', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Edit admin', exact: true })).toBeVisible()
-  await shot('36-redesigned-dark-people')
+  await shot('36-ui-dark-people')
   await page.getByRole('button', { name: 'Activity', exact: true }).click()
   await page.getByLabel('Search activity').fill('finished an upload')
   await expect(page.locator('.activity-table tbody tr').first()).toContainText('finished an upload')
-  await shot('37-redesigned-dark-activity')
-  check('redesigned transfers and activity filters show matching records')
+  await shot('37-ui-dark-activity')
+  check('transfer and activity filters show matching records')
 
-  await page.getByRole('button', { name: 'My files', exact: true }).first().click()
+  await openTarget(page)
   await page.keyboard.press('?')
   await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
   await shot('38-keyboard-shortcuts')
@@ -144,23 +144,23 @@ try {
   await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toBeVisible()
   check('keyboard shortcut help closes with Escape and G T navigates to transfers')
 
-  await page.getByRole('button', { name: 'My files', exact: true }).first().click()
+  await openTarget(page)
   for (const width of [390, 768]) {
     await page.setViewportSize({ width, height: 844 })
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true)
     for (const label of ['My files', 'Transfers', 'People & access', 'Activity', 'Settings']) {
       await expect(page.getByRole('button', { name: label, exact: true }).first()).toBeVisible()
     }
-    await shot(width === 390 ? '39-redesigned-dark-mobile' : '40-redesigned-dark-tablet')
+    await shot(width === 390 ? '39-ui-dark-mobile' : '40-ui-dark-tablet')
   }
   check('390 px mobile and 768 px tablet retain navigation without page overflow')
 
   assert.deepEqual(errors, [])
   check('no unhandled browser JavaScript errors')
-  await writeFile(join(output, 'browser-redesign-results.json'), JSON.stringify({ status: 'PASS', results, errors, browserVersion: browser.version() }, null, 2))
+  await writeFile(join(output, 'browser-ui-results.json'), JSON.stringify({ status: 'PASS', results, errors, browserVersion: browser.version() }, null, 2))
 } catch (error) {
-  await shot('failure-redesign').catch(() => {})
-  await writeFile(join(output, 'browser-redesign-results.json'), JSON.stringify({ status: 'FAIL', error: error.stack, results, errors }, null, 2))
+  await shot('failure-ui').catch(() => {})
+  await writeFile(join(output, 'browser-ui-results.json'), JSON.stringify({ status: 'FAIL', error: error.stack, results, errors }, null, 2))
   throw error
 } finally {
   await browser.close()

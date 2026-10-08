@@ -22,8 +22,7 @@ export function storageLocations(root: string, state: string) {
 }
 
 export function serverStorage(argv: string[] = process.argv.slice(2), env = process.env) {
-  if (argv.length) throw new Error('Storage targets are configured in setup or administration; positional storage arguments are not supported')
-  if (env.FB_STORAGE_ROOT || env.SERVE_PATH || env.FB_READ_ONLY) throw new Error('Global storage configuration is not supported. Configure named targets in the application.')
+  if (argv.length) throw new Error('Command-line arguments are not supported; configure the server through environment variables and storage targets in the application')
   return { stateDirectory: env.FB_STATE_DIR ?? './.filebrowser-state', setupLocalPath: env.FB_SETUP_LOCAL_PATH ?? './data' }
 }
 

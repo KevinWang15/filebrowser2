@@ -30,19 +30,12 @@ RUN chmod 700 /state /state/protocols /control /samba-state
 COPY --from=build /runtime/app/ ./
 COPY --from=build /runtime/LICENSE /runtime/NOTICE.md /runtime/THIRD_PARTY_NOTICES.md ./
 COPY --from=build /runtime/licenses ./licenses
-# Keep the companion entry point available in the same published image.
-RUN ln -s dist/server/samba-agent.js agent.mjs
 USER node
 EXPOSE 3000 445
 CMD ["node", "--enable-source-maps", "dist/server/server.js"]
 
-# Compatibility target for native SMB verification and existing source builds.
-FROM runtime-base AS smb
+FROM runtime-base AS smb-verification
 USER root
-ENV FB_SMB_CONTROL_DIR=/control FB_SMB_ALLOWED_ROOTS='["/files"]' FB_SMB_STATE_DIR=/samba-state
-CMD ["node", "agent.mjs"]
-
-FROM smb AS smb-verification
 RUN apt-get update && apt-get install -y --no-install-recommends smbclient && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/scripts/verify-container-shares.mjs /app/scripts/verification-targets.mjs ./
 CMD ["node", "verify-container-shares.mjs"]

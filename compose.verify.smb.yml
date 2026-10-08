@@ -9,11 +9,15 @@ services:
       - verify-protocol-control:/state/protocols
       - verify-files-second:/files-second
   smb:
+    user: "0:0"
+    command: ["node", "dist/server/samba-agent.js"]
     build:
       context: .
-      target: smb
+      target: runtime
     init: true
     environment:
+      FB_SMB_CONTROL_DIR: /control
+      FB_SMB_STATE_DIR: /samba-state
       FB_SMB_ALLOWED_ROOTS: '["/files","/files-second"]'
     volumes:
       - verify-files:/files:ro
@@ -21,7 +25,7 @@ services:
       - verify-protocol-control:/control
       - verify-samba-state:/samba-state
     healthcheck:
-      test: ["CMD", "node", "agent.mjs", "--health"]
+      test: ["CMD", "node", "dist/server/samba-agent.js", "--health"]
       interval: 2s
       timeout: 3s
       retries: 30

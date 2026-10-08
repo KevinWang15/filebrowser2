@@ -14,7 +14,7 @@ services:
       context: .
       target: runtime
     user: "0:0"
-    command: ["node", "agent.mjs"]
+    command: ["node", "dist/server/samba-agent.js"]
     init: true
     restart: unless-stopped
     environment:
@@ -28,7 +28,7 @@ services:
       - protocol-control:/control
       - samba-state:/samba-state
     healthcheck:
-      test: ["CMD", "node", "agent.mjs", "--health"]
+      test: ["CMD", "node", "dist/server/samba-agent.js", "--health"]
       interval: 5s
       timeout: 3s
       retries: 5

@@ -9,11 +9,10 @@ import { serverStorage, storageLocations, uploadConfig } from '../backend/config
 import { createApp } from '../backend/app.ts'
 import { CHUNK_SIZE, MAX_FILE_SIZE } from '../shared/types.ts'
 
-test('startup has no implicit storage; global and positional storage configuration is rejected',()=>{
+test('startup reads state and setup configuration without creating an implicit storage target',()=>{
   assert.deepEqual(serverStorage([],{}),{stateDirectory:'./.filebrowser-state',setupLocalPath:'./data'})
   assert.deepEqual(serverStorage([],{FB_STATE_DIR:'/private',FB_SETUP_LOCAL_PATH:'/suggested'}),{stateDirectory:'/private',setupLocalPath:'/suggested'})
   for(const args of [['/directory'],['--unknown'],['one','two']])assert.throws(()=>serverStorage(args,{}),/not supported/)
-  for(const name of ['FB_STORAGE_ROOT','SERVE_PATH','FB_READ_ONLY'])assert.throws(()=>serverStorage([],{[name]:'/directory'}),/Global storage configuration/)
 })
 
 test('whole-filesystem storage requires private state in the reserved namespace',()=>{

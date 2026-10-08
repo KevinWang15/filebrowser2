@@ -38,7 +38,7 @@ for (const type of Object.keys(connections)) {
     const directory = await mkdtemp(join(tmpdir(), 'filebrowser-remote-access-'))
     const connection = config(type).connection
     if (type === 's3') { const client = await bucket(); client.destroy() }
-    const storage = type === 's3' ? new S3Storage(type, connection, directory, false) : new FileRemoteStorage(type, connection, directory, false)
+    const storage = type === 's3' ? new S3Storage(connection, directory, false) : new FileRemoteStorage(connection, directory, false)
     const name = '/access-' + randomUUID(), target = name + '-moved', folder = name + '-directory'
     t.after(async () => { storage.close(); await rm(directory, { recursive: true, force: true }) })
     const denied = () => { throw new HttpError(403, 'Permission revoked') }
@@ -104,17 +104,23 @@ for (const type of Object.keys(connections)) {
     assert.equal((await f.request(fileApi + '/directories', { directory: '/', name: directory.slice(1) })).status, 200)
     const bytes = Buffer.alloc(chunkSize * 2 + 193, 0x59); bytes[chunkSize] = 0x71; bytes[bytes.length - 1] = 0x36
     const session = await init(f, 'payload.bin', bytes, directory)
+    assert.equal((await f.request(fileApi + '/directories', { directory: '/', name: directory.slice(1), existOk: true })).status, 200, 'folder uploads can reuse a remote directory with an active child transfer')
+    assert.equal((await f.request(fileApi + '/directories', { directory, name: 'Nested', existOk: true })).status, 200)
+    assert.equal((await f.request(fileApi + '/directories', { directory, name: 'Nested', existOk: true })).status, 200)
     assert.equal((await f.request(`/uploads/${session.id}/chunks/1/start`, { connections: 1 })).status, 409)
     const corrupt = await send(f, session, 0, bytes, true); assert.equal(corrupt.status, 422, await corrupt.clone().text())
     assert.equal((await (await f.request(`/uploads/${session.id}`)).json()).committedBytes, 0)
     let commit = await send(f, session, 0, bytes); assert.equal(commit.status, 200, await commit.clone().text())
     assert.equal((await commit.json()).committedBytes, chunkSize)
-    const listing = await (await f.request(fileApi + '?path=' + directory)).json(); assert.equal(listing.entries[0].name, 'payload.bin.uploading'); assert.equal(listing.entries[0].uploading, true); assert.equal(listing.entries[0].size, chunkSize)
+    const listing = await (await f.request(fileApi + '?path=' + directory)).json(), pending = listing.entries.find(entry => entry.name === 'payload.bin.uploading')
+    assert.ok(pending); assert.equal(pending.uploading, true); assert.equal(pending.size, chunkSize)
     assert.equal((await f.request(fileApi + '/content?path=' + directory + '/payload.bin.uploading')).status, 409)
     const stages = await readdir(join(f.stateDirectory, 'targets', f.targetId)); assert.deepEqual(stages, [session.id]); assert.ok(!(await readdir(join(f.stateDirectory, 'targets', f.targetId, session.id))).includes('chunk'))
     await f.restart()
     for (const index of [1, 2]) { commit = await send(f, session, index, bytes); assert.equal(commit.status, 200, await commit.clone().text()) }
     const completed = await f.request(`/uploads/${session.id}/complete`, {}); assert.equal(completed.status, 200, await completed.clone().text()); assert.equal((await completed.json()).status, 'completed')
+    const folderConflict = await f.request(fileApi + '/directories', { directory, name: 'payload.bin', existOk: true })
+    assert.equal(folderConflict.status, 409); assert.equal((await folderConflict.json()).code, 'DESTINATION_EXISTS')
     assert.deepEqual(Buffer.from(await (await f.request(fileApi + '/content?path=' + directory + '/payload.bin')).arrayBuffer()), bytes)
     const ranged = await fetch(`${f.address}/api${fileApi}/content?path=${directory}/payload.bin`, { headers: { cookie: f.cookie, range: `bytes=${chunkSize - 2}-${chunkSize + 2}` } }); assert.equal(ranged.status, 206); assert.deepEqual(Buffer.from(await ranged.arrayBuffer()), bytes.subarray(chunkSize - 2, chunkSize + 3))
     const head = await fetch(`${f.address}/api${fileApi}/content?path=${directory}/payload.bin`, { method: 'HEAD', headers: { cookie: f.cookie } }); assert.equal(head.headers.get('content-length'), String(bytes.length)); assert.equal((await head.arrayBuffer()).byteLength, 0)
@@ -130,6 +136,7 @@ for (const type of Object.keys(connections)) {
     const unicodePath = encodeURIComponent(directory + '/' + unicodeName)
     assert.deepEqual(Buffer.from(await (await f.request(fileApi + '/content?path=' + unicodePath)).arrayBuffer()), unicodeBytes)
     assert.equal((await f.request(fileApi + '?path=' + unicodePath, undefined, 'DELETE')).status, 200)
+    assert.equal((await f.request(fileApi + '?path=' + directory + '/Nested', undefined, 'DELETE')).status, 200)
     assert.equal((await f.request(fileApi + '?path=' + directory, undefined, 'DELETE')).status, 200)
     assert.deepEqual(await readdir(join(f.stateDirectory, 'targets', f.targetId)), [])
     if (type === 's3') assert.equal((await client.send(new ListMultipartUploadsCommand({ Bucket: s3.bucket, Prefix: f.targetConfig.connection.prefix }))).Uploads?.length ?? 0, 0)

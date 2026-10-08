@@ -4,8 +4,6 @@ import type { FileEntry, TargetCapabilities } from '@/shared/types'
 // Inspired by rclone's Fs/Object/Features separation. Operations expose virtual paths,
 // never backend-native paths. A remote adapter can provide multipart instead of append.
 export interface StorageBackend {
-  readonly name: string
-  readonly type: string
   readonly capabilities: TargetCapabilities
   list(directory: string): Promise<FileEntry[]>
   walk(directory: string): AsyncIterable<FileEntry>

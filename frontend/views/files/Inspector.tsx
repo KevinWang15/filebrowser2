@@ -25,8 +25,8 @@ function FolderContents({ entry, targetId }: { entry: FileEntry; targetId: strin
   </div>
 }
 
-export function Inspector({ entry, selection, folder, folderEntries, user, onClose, onOpen, onDownload, onRename, onDelete, onCopyPath, onTransfers }: {
-  entry: FileEntry | null; selection: FileEntry[]; folder: string; folderEntries: FileEntry[]; user: TargetAccess
+export function Inspector({ entry, selection, folder, folderName, folderEntries, user, onClose, onOpen, onDownload, onRename, onDelete, onCopyPath, onTransfers }: {
+  entry: FileEntry | null; selection: FileEntry[]; folder: string; folderName: string; folderEntries: FileEntry[]; user: TargetAccess
   onClose: () => void; onOpen: (entry: FileEntry) => void; onDownload: (entries: FileEntry[]) => void; onRename: (entry: FileEntry) => void
   onDelete: (entries: FileEntry[]) => void; onCopyPath: (path: string) => void; onTransfers: () => void
 }) {
@@ -53,11 +53,10 @@ export function Inspector({ entry, selection, folder, folderEntries, user, onClo
 
   if (!entry) {
     const summary = summarize(folderEntries)
-    const name = folder === '/' ? 'All files' : folder.split('/').pop()!
     return <aside className="inspector" aria-label="Details">
       {header}
       <div className="inspector-body">
-        <div className="inspector-hero"><FileIcon entry={{ name, kind: 'directory' }} size={34} /><strong>{name}</strong><span className="dim">Current folder</span></div>
+        <div className="inspector-hero"><FileIcon entry={{ name: folderName, kind: 'directory' }} size={34} /><strong>{folderName}</strong><span className="dim">Current folder</span></div>
         <Meta rows={[['Location', <span className="mono">{folder}</span>, folder], ['Folders', summary.folders.toLocaleString()], ['Files', summary.files.toLocaleString()],
           ['Size', formatBytes(summary.bytes), `${summary.bytes.toLocaleString()} bytes, excluding subfolders`], ...(summary.uploading ? [['Uploading', summary.uploading.toLocaleString()] as [string, string]] : [])]} />
         <p className="inspector-note">Select an item to see its details. Hold <kbd className="kbd">Shift</kbd> or <kbd className="kbd">Ctrl</kbd> to select several.</p>

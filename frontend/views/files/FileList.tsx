@@ -14,7 +14,7 @@ interface ListProps {
   sort: SortKey; ascending: boolean; onSort: (key: SortKey) => void
   onRowClick: RowHandler; onOpen: (entry: FileEntry) => void; onMenu: (entry: FileEntry | null, event: MouseEvent) => void
   onToggle: (entry: FileEntry) => void; onToggleAll: (checked: boolean) => void
-  onRename: (entry: FileEntry) => void; onDownload: (entry: FileEntry) => void; onDropInto: (entry: FileEntry, files: File[]) => void
+  onRename: (entry: FileEntry) => void; onDownload: (entry: FileEntry) => void; onDropInto: (entry: FileEntry, data: DataTransfer) => void
   scroller: RefObject<HTMLDivElement | null>; rowHeight: number
 }
 
@@ -29,7 +29,7 @@ function useFolderDrop(entry: FileEntry, user: TargetAccess, onDropInto: ListPro
     handlers: {
       onDragOver: (event: DragEvent) => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = 'copy'; setOver(true) } },
       onDragLeave: () => setOver(false),
-      onDrop: (event: DragEvent) => { event.preventDefault(); event.stopPropagation(); setOver(false); onDropInto(entry, Array.from(event.dataTransfer.files)) },
+      onDrop: (event: DragEvent) => { event.preventDefault(); event.stopPropagation(); setOver(false); onDropInto(entry, event.dataTransfer) },
     },
   }
 }

@@ -41,10 +41,9 @@ async function upload(f, targetId, name, data) {
   return session
 }
 
-test('setup can finish without targets; legacy file APIs and unqualified manifests are rejected', async t => {
+test('setup can finish without targets; uploads require a target identity', async t => {
   const f = await fixture(t, false)
   assert.deepEqual((await (await f.request('/bootstrap')).json()).targets, [])
-  assert.equal((await f.request('/files')).status, 404)
   const body = manifest('00000000-0000-4000-8000-000000000000', 'x', Buffer.alloc(0)); delete body.targetId
   assert.equal((await f.request('/uploads', 'POST', body)).status, 400)
   assert.equal((await f.request('/admin/targets', 'POST', localTarget(join(f.root, 'added')))).status, 201)
@@ -155,10 +154,24 @@ test('connection secrets are redacted, encrypted on disk, kept on edit, and neve
   assert.equal((await f.request('/admin/targets/' + target.id, 'DELETE')).status, 204)
 })
 
-test('old databases are rejected without migration or retaining a process lock', async t => {
+test('unsupported or incomplete state is rejected without changing its schema or retaining a lock', async t => {
   const root = await mkdtemp(join(tmpdir(), 'filebrowser-schema-')); t.after(() => rm(root, { recursive: true, force: true }))
-  await mkdir(root, { recursive: true }); const db = new DatabaseSync(join(root, 'filebrowser.sqlite')); db.exec('CREATE TABLE users(id TEXT PRIMARY KEY)'); db.close()
-  for (let index = 0; index < 2; index++) await assert.rejects(createApp({ stateDirectory: root }), /unsupported schema/)
+  const path = join(root, 'filebrowser.sqlite')
+  const db = new DatabaseSync(path); db.exec('CREATE TABLE unrelated(value TEXT)'); db.close()
+  for (const version of [0, 999]) {
+    const fixture = new DatabaseSync(path); fixture.exec('PRAGMA user_version = ' + version); fixture.close()
+    for (let attempt = 0; attempt < 2; attempt++) await assert.rejects(createApp({ stateDirectory: root }), /unsupported schema/)
+    const inspected = new DatabaseSync(path)
+    try { assert.deepEqual(inspected.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all().map(row => row.name), ['unrelated']) }
+    finally { inspected.close() }
+  }
+  await rm(path)
+  const app = await createApp({ stateDirectory: root }); await app.close()
+  const damaged = new DatabaseSync(path); damaged.exec('DROP TABLE sessions'); damaged.close()
+  for (let attempt = 0; attempt < 2; attempt++) await assert.rejects(createApp({ stateDirectory: root }), /no such table: sessions/)
+  const inspected = new DatabaseSync(path)
+  try { assert.equal(inspected.prepare("SELECT name FROM sqlite_schema WHERE name='sessions'").get(), undefined) }
+  finally { inspected.close() }
 })
 
 test('a failed local setup remains retryable and does not create an administrator or target', async t => {

@@ -14,6 +14,7 @@ import { formatBytes, parentPath, plural } from '../../lib/format'
 import { shortcutBlocked } from '../../lib/modalStack'
 import { useNotify } from '../../lib/notify'
 import { can } from '../../lib/permissions'
+import { droppedFiles, type UploadSource } from '../../lib/upload-files'
 import { usePref } from '../../lib/prefs'
 import { scrollRowIntoView } from '../../lib/useWindowing'
 import type { Transfer } from '../../upload-engine'
@@ -31,7 +32,7 @@ const join = (directory: string, name: string) => (directory === '/' ? '' : dire
 
 export function FilesView({ targetName, path, user, transfers, density, folderRequest, onNavigate, onTargets, onUpload, onAddFiles, onTransfers }: {
   targetName: string; path: string; user: TargetAccess; transfers: Transfer[]; density: 'compact' | 'comfortable'; folderRequest: number
-  onNavigate: (path: string) => void; onTargets: () => void; onUpload: () => void; onAddFiles: (files: File[], directory: string) => void; onTransfers: () => void
+  onNavigate: (path: string) => void; onTargets: () => void; onUpload: () => void; onAddFiles: (files: UploadSource[], directory: string) => void; onTransfers: () => void
 }) {
   const notify = useNotify()
   const [listing, setListing] = useState<Listing>({ path: '', entries: [], error: '' })
@@ -51,6 +52,8 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
   const scroller = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const dragDepth = useRef(0)
+  const dropScan = useRef<AbortController | null>(null)
+  useEffect(() => () => { dropScan.current?.abort() }, [path, user.targetId])
   const currentPath = useRef<string | null>(null)
   const listingRequest = useRef(0)
   const rowHeight = ROW_HEIGHT[density]
@@ -82,8 +85,8 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
   }, [path, load])
   const refresh = useCallback(async () => { setReloading(true); try { await load(path) } finally { setReloading(false) } }, [load, path])
 
-  // Refresh silently when an upload into this folder creates its pending file, completes, or is canceled.
-  const transferKey = transfers.filter(t => t.targetId === user.targetId && t.directory === path).map(t => `${t.session?.id ?? t.id}:${t.state === 'completed' ? 1 : 0}`).sort().join()
+  // Nested uploads can create new child folders, so ancestors also refresh on session changes.
+  const transferKey = transfers.filter(t => t.targetId === user.targetId && (t.directory === path || t.directory.startsWith(path === '/' ? '/' : path + '/'))).map(t => `${t.session?.id ?? t.id}:${t.state === 'completed' ? 1 : 0}`).sort().join()
   const lastKey = useRef(transferKey)
   useEffect(() => {
     if (lastKey.current === transferKey) return
@@ -135,7 +138,17 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
   }, [])
   const onToggleAll = useCallback((checked: boolean) => setSelected(checked ? new Set(visible.filter(entry => !entry.uploading).map(entry => entry.path)) : new Set()), [visible])
   const onSort = useCallback((key: SortKey) => { if (key === sort) setOrder(order === 'asc' ? 'desc' : 'asc'); else { setSort(key); setOrder('asc') } }, [sort, order, setSort, setOrder])
-  const onDropInto = useCallback((entry: FileEntry, dropped: File[]) => { dragDepth.current = 0; setDragging(false); if (dropped.length) onAddFiles(dropped, entry.path) }, [onAddFiles])
+  const dropFiles = useCallback((data: DataTransfer, directory: string) => {
+    dragDepth.current = 0; setDragging(false)
+    dropScan.current?.abort()
+    const controller = new AbortController(); dropScan.current = controller
+    void droppedFiles(data, controller.signal).then(files => {
+      if (controller.signal.aborted) return
+      if (files.length) onAddFiles(files, directory)
+      else notify('This selection contains no files to upload.', true)
+    }).catch(error => { if (!controller.signal.aborted) notify(errorMessage(error), true) })
+  }, [notify, onAddFiles])
+  const onDropInto = useCallback((entry: FileEntry, data: DataTransfer) => dropFiles(data, entry.path), [dropFiles])
 
   const entryMenu = (entry: FileEntry): MenuItem[] => {
     const many = selected.has(entry.path) && picked.length > 1
@@ -232,7 +245,7 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
     onDragEnter: (event: DragEvent) => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); dragDepth.current++; setDragging(true) } },
     onDragOver: (event: DragEvent) => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' } },
     onDragLeave: () => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (!dragDepth.current) setDragging(false) },
-    onDrop: (event: DragEvent) => { event.preventDefault(); dragDepth.current = 0; setDragging(false); const dropped = Array.from(event.dataTransfer.files); if (dropped.length) onAddFiles(dropped, path) },
+    onDrop: (event: DragEvent) => { event.preventDefault(); dropFiles(event.dataTransfer, path) },
   } : {}
 
   const parts = path.split('/').filter(Boolean)
@@ -309,7 +322,7 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
               </div>}>{can(user, 'upload') ? <>Drop files here, or press <Kbd>U</Kbd> to upload.</> : 'There is nothing here yet.'}</EmptyState>
               : layout === 'list' ? <FileTable {...listProps} /> : <FileGrid {...listProps} />}
       </div>
-      {showDetails && <Inspector entry={picked.length <= 1 ? (picked[0] ?? cursorEntry) : null} selection={picked} folder={path} folderEntries={entries} user={user}
+      {showDetails && <Inspector entry={picked.length <= 1 ? (picked[0] ?? cursorEntry) : null} selection={picked} folder={path} folderName={title} folderEntries={entries} user={user}
         onClose={() => setDetails('closed')} onOpen={open} onDownload={downloadItems} onRename={rename} onDelete={remove} onCopyPath={copyPath} onTransfers={onTransfers} />}
       {dragging && <div className="drop-overlay"><div><IconCloudUpload size={30} stroke={1.5} /><strong>Drop to upload</strong><span>into <span className="mono">{title}</span></span></div></div>}
     </div>

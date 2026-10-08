@@ -1,7 +1,7 @@
-import { verificationTargetId } from './verification-targets.mjs'
+import { openTarget, verificationTargetId } from './verification-targets.mjs'
 /* global document, window */
 import assert from 'node:assert/strict'
-import { chromium } from '@playwright/test'
+import { chromium, expect } from '@playwright/test'
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -33,6 +33,7 @@ async function login(username='admin',password='container-verification-password'
   await target.getByRole('button',{name:'Sign in',exact:true}).click()
   await target.getByRole('heading',{name:'My files'}).waitFor()
   targetId = verificationTargetId(await (await context.request.get(url + '/api/bootstrap')).json())
+  await openTarget(target)
 }
 async function waitText(locator,text,timeout=60000) {
   await locator.getByText(text,{exact:true}).waitFor({timeout})
@@ -49,6 +50,7 @@ try {
     await page.getByLabel('Workspace name').fill('Filebrowser verification')
     await page.getByRole('button',{name:'Continue',exact:true}).click()
     await page.getByLabel('Root directory').fill('/files')
+    await page.getByLabel('Read only', { exact: true }).uncheck()
     await page.getByRole('button',{name:'Continue',exact:true}).click()
     await page.getByLabel('Username',{exact:true}).fill('admin')
     await page.getByLabel('Password',{exact:true}).fill('container-verification-password')
@@ -77,7 +79,7 @@ try {
     const notes=Buffer.from('Container verified: scoped folders, previews, downloads, and resumable transfers.\n'.repeat(500))
     await page.locator('input[type=file][multiple]').setInputFiles({name:notesName,mimeType:'text/markdown',buffer:notes})
     await waitText(page.locator('.transfer-row').filter({hasText:notesName}),'Complete')
-    await page.getByRole('button',{name:'My files',exact:true}).first().click()
+    await openTarget(page, 'Local', '/' + folderName)
     await page.getByRole('button',{name:notesName,exact:true}).click()
     assert.match(await page.locator('.text-preview').textContent(),/Container verified/)
     await shot('06-text-preview')
@@ -109,7 +111,7 @@ try {
     const transfersBefore=await(await context.request.get(url+'/api/uploads')).json()
     const session=transfersBefore.find(item=>item.name===largeName)
     assert.equal(session.nextChunk,8);assert.equal(session.committedBytes,819200)
-    await page.getByRole('button',{name:'My files',exact:true}).first().click()
+    await openTarget(page, 'Local', '/' + folderName)
     const pendingRow=page.getByRole('row').filter({hasText:largeName+'.uploading'})
     await pendingRow.getByText('Uploading',{exact:true}).waitFor()
     assert.equal(await page.getByLabel('Select '+largeName+'.uploading').isDisabled(),true)
@@ -190,15 +192,13 @@ try {
     await page.getByRole('button',{name:'Close dialog'}).click()
     check('last administrator cannot be demoted')
     await page.getByRole('button',{name:'Activity',exact:true}).click()
-    await page.locator('.activity-list').waitFor()
-    assert.match(await page.locator('.activity-list').textContent(),/finished an upload/)
+    await expect(page.locator('.activity-list')).toContainText('finished an upload')
     await shot('17-workspace-activity')
     await page.getByRole('button',{name:'Settings',exact:true}).click()
     await page.getByText('100 KiB',{exact:true}).waitFor()
     await shot('18-runtime-configuration')
     check('settings display the actual runtime chunk override')
-    await page.getByRole('button',{name:'My files',exact:true}).first().click()
-    await page.getByRole('button',{name:'My files',exact:true}).last().click()
+    await openTarget(page)
     await page.getByRole('button',{name:'one-gib-verified.bin',exact:true}).waitFor()
     await shot('19-one-gib-file-in-workspace')
     await page.setViewportSize({width:390,height:844})

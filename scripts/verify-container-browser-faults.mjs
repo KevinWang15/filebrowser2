@@ -1,4 +1,4 @@
-import { verificationTargetId } from './verification-targets.mjs'
+import { openTarget, verificationTargetId } from './verification-targets.mjs'
 /* global window */
 import assert from 'node:assert/strict'
 import { chromium } from '@playwright/test'
@@ -46,7 +46,8 @@ try {
   await page.getByLabel('Password',{exact:true}).fill(process.env.FB_VERIFY_ADMIN_PASSWORD??'changed-container-verification-password')
   await page.getByRole('button',{name:'Sign in',exact:true}).click()
   await page.getByRole('heading',{name:'My files'}).waitFor()
-    targetId = verificationTargetId(await(await context.request.get(url+'/api/bootstrap')).json())
+  targetId = verificationTargetId(await(await context.request.get(url+'/api/bootstrap')).json())
+  await openTarget(page)
   await page.getByRole('button',{name:'Transfers',exact:true}).click()
 
   let lostCommit

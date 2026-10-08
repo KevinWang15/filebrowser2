@@ -3,8 +3,7 @@ import { IconAlertTriangle, IconChevronRight, IconHome2, IconRefresh, IconServer
 import type { Target } from '@/shared/types'
 import { EmptyState, SearchField } from '../components/ui'
 import { plural } from '../lib/format'
-
-const TYPE_LABELS = { local: 'Local storage', s3: 'S3', ftp: 'FTP / FTPS', sftp: 'SFTP' }
+import { TARGET_LABELS } from '../lib/target-connections'
 
 export function TargetListView({ targets, admin, unavailable, onOpen, onManage, onRefresh }: {
   targets: Target[]; admin: boolean; unavailable: boolean
@@ -36,7 +35,7 @@ export function TargetListView({ targets, admin, unavailable, onOpen, onManage, 
         : <ul className="target-list" aria-label="Storage targets">{visible.map(target => <li key={target.id}>
           <button type="button" className="target-entry" aria-label={target.name} onClick={() => onOpen(target.id)}>
             <span className="target-entry-icon"><IconServer size={21} stroke={1.5} /></span>
-            <span className="target-entry-name"><strong title={target.name}>{target.name}</strong><span>{TYPE_LABELS[target.type]}{target.readOnly ? ' · Read only' : ''}</span></span>
+            <span className="target-entry-name"><strong title={target.name}>{target.name}</strong><span>{TARGET_LABELS[target.type]}{target.readOnly ? ' · Read only' : ''}</span></span>
             <IconChevronRight size={16} className="dim" />
           </button>
         </li>)}</ul>}
