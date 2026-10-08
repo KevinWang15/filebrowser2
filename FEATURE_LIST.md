@@ -107,7 +107,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 
 - Passive FTP connections with configurable host, port, username, password, and absolute root.
 - Optional FTPS with certificate verification; private CA trust can be supplied through Node's certificate configuration.
-- Directory listing, metadata, streamed downloads, range reads, folder creation, rename, and file/empty-folder deletion.
+- Directory listing, metadata, streamed downloads, range reads, folder creation, rename, and recursive file/folder deletion.
 - Resumable offset writes through REST STREAM, with an explicit rejection when the server does not advertise restart-write support.
 - Private remote upload stages and read-back SHA-256 verification of each saved chunk before checkpoint acknowledgment.
 - Verification of saved receipt hashes after restart/reconnect and of the complete saved file before final rename.
@@ -119,7 +119,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - SSH-backed targets with configurable host, port, username, and absolute root.
 - Password or private-key authentication, including optional private-key passphrases.
 - Required SHA-256 host-key pinning to verify server identity.
-- Directory listing, metadata, streamed/ranged reads, folder creation, rename, and file/empty-folder deletion.
+- Directory listing, metadata, streamed/ranged reads, folder creation, rename, and recursive file/folder deletion.
 - Offset writes to owned private remote stages, requiring the OpenSSH fsync extension for uploads.
 - Remote file fsync and read-back SHA-256 checks before recording each saved chunk's receipt.
 - Saved-prefix verification after restart/reconnect and truncation of unacknowledged tails before retry.
@@ -152,7 +152,8 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Rename files and filesystem directories within their parent directory; S3 supports individual object rename only.
 - Rename dialog selects the basename while preserving the extension for convenient editing.
 - Create-folder and rename dialogs reject reserved names, slashes, control characters, whitespace-only names, and names exceeding 255 UTF-8 bytes before submission, using the same filename rules as the API.
-- Delete files and empty folders, including multiple selected items processed individually with progress and per-item failure messages.
+- Delete files and folders recursively across all target types, including nested files and empty directories; multiple selected items are processed individually with progress and per-item failure messages.
+- Recursive deletion rechecks delete access and upload/share protections during traversal, preserves private or unsupported entries, and refreshes the listing after partial failures.
 - Confirmation dialogs for permanent deletion and prevention of renaming/deleting the user's virtual root.
 - Destination conflict checks that preserve existing names and report busy or conflicting operations.
 - Protection of unfinished upload destinations, pending names, and containing directories from conflicting mutations.
@@ -334,7 +335,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Native MinIO, FTP, certificate-verified FTPS, and OpenSSH fixtures for remote CRUD, range reads, archives, uploads, reconnection, credential repair, and crash recovery.
 - Native SMB fixtures verify desktop access, read-only enforcement, revocation, restart reconstruction, lease expiry, delayed policies, and control-publication failures.
 - Browser workflows cover setup, scoped members, file actions, previews, native downloads/TARs, worker hashing, resume, target switching, mobile layout, and appearance persistence across reload.
-- Folder-upload browser checks exercise the native folder picker, nested paths, duplicate basenames, Unicode names, empty files, directory reuse, per-file reload recovery, drop destinations, ancestor refresh, and permission restrictions.
+- Folder-upload browser checks exercise the native folder picker, nested paths, duplicate basenames, Unicode names, empty files, directory reuse, per-file reload recovery, drop destinations, ancestor refresh, permission restrictions, and recursive deletion with partial-failure reporting.
 - Directory-intake tests cover listings spanning multiple browser batches, mixed file/folder drops, invalid paths, unreadable entries, and scan cancellation.
 - File-rule checks cover UTF-8 filename limits, reserved names, managed upload suffixes, and text-preview boundaries.
 - Portable-runtime relocation/boot tests and source-package checks for notices, static assets, clean-tree requirements, and private/generated file exclusion.

@@ -211,10 +211,12 @@ test('shutdown releases application locks when the control directory cannot be w
 
 test('shared roots cannot be renamed or deleted; removal and password reset revoke grants', async t => {
   const f = await fixture(t)
-  await mkdir(join(f.root, 'files', 'folder'))
-  const created = await f.create('Folder', '/folder')
+  await mkdir(join(f.root, 'files', 'folder', 'shared'), { recursive: true })
+  await writeFile(join(f.root, 'files', 'folder', 'keep.txt'), 'protected subtree')
+  const created = await f.create('Folder', '/folder/shared')
   assert.equal((await f.request(`/targets/${f.targetId}/files`, 'PATCH', { path: '/folder', name: 'moved' })).status, 409)
   assert.equal((await f.request(`/targets/${f.targetId}/files?path=/folder`, 'DELETE')).status, 409)
+  assert.equal(await readFile(join(f.root, 'files', 'folder', 'keep.txt'), 'utf8'), 'protected subtree')
   const disabled = await f.request('/admin/shares/' + created.share.id, 'PATCH', { enabled: false })
   assert.equal((await disabled.json()).status, 'disabled')
   assert.equal(JSON.parse(await readFile(join(f.directory, 'desired.json'), 'utf8')).shares.length, 0)

@@ -111,8 +111,10 @@ export class S3Storage implements StorageBackend, SequentialUploadBackend {
   async remove(path: string, authorize: () => void = () => {}) {
     this.writable(); const entry = await this.stat(path)
     if (entry.kind === 'directory') {
-      if ((await this.list(path)).length) throw Object.assign(new Error('Directory is not empty'), { code: 'ENOTEMPTY' })
-      path += '/'
+      const prefix = this.key(path) + '/'
+      const page = await this.send(() => this.client.send(new ListObjectsV2Command({ Bucket: this.connection.bucket, Prefix: prefix, MaxKeys: 2 })))
+      // Browser listings hide private/unsupported keys. They still prevent removing the folder.
+      if (page.Contents?.some(object => object.Key !== prefix)) throw Object.assign(new Error('Directory is not empty'), { code: 'ENOTEMPTY' })
     }
     authorize()
     await this.send(() => this.client.send(new DeleteObjectCommand({ Bucket: this.connection.bucket, Key: this.key(path) + (entry.kind === 'directory' ? '/' : '') })))

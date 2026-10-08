@@ -74,8 +74,7 @@ export function DeleteDialog({ targetId, entries, onClose, onDone }: { targetId:
     }
     setErrors(failures)
     setBusy(false)
-    if (!failures.size) await onDone(deleted, 0)
-    else if (deleted) await onDone(deleted, failures.size)
+    await onDone(deleted, failures.size)
   }
   const failed = entries.filter(entry => errors.has(entry.path))
   return <Modal title={entries.length === 1 ? `Delete “${entries[0].name}”?` : `Delete ${plural(entries.length, 'item')}?`} icon={<IconTrash size={17} />}
@@ -87,7 +86,7 @@ export function DeleteDialog({ targetId, entries, onClose, onDone }: { targetId:
       </> : <>
         {entries.length > 1 && <ul className="dialog-list">{entries.slice(0, 8).map(entry => <li key={entry.path}><FileIcon entry={entry} size={14} /><span>{entry.name}</span><span className="mono dim">{entry.kind === 'file' ? formatBytes(entry.size) : ''}</span></li>)}
           {entries.length > 8 && <li className="dim">+ {entries.length - 8} more</li>}</ul>}
-        <p className="dialog-note">{bytes > 0 && <><span className="mono">{formatBytes(bytes)}</span> will be freed. </>}{folders > 0 && 'Folders must be empty to be deleted.'}</p>
+        <p className="dialog-note">{bytes > 0 && <><span className="mono">{formatBytes(bytes)}</span> of selected files will be freed. </>}{folders > 0 && 'Folders and all their contents will be permanently deleted.'}</p>
       </>}
     </div>
     <footer className="modal-footer">

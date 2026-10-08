@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { MAX_CHUNKS, type SystemInfo, type TargetGrant, type TargetAccess, type Permission } from '@/shared/types'
 import { VERSION } from '@/shared/version'
 import { MAX_NAME_BYTES, MAX_PATH_LENGTH, supportsTextPreview } from '@/shared/file-rules'
+import { removeTree } from './storage/remove-tree'
 import { uploadConfig } from './config'
 import { Auth, hashPassword, verifyPassword, requireUser, requireAdmin } from './auth'
 import { Store } from './store'
@@ -120,7 +121,7 @@ export async function createApp(options: AppOptions = {}) {
     if (error instanceof HttpError) return reply.code(error.statusCode).send({ message: error.message, code: error.code })
     if (isFsError(error, 'ENOENT')) return reply.code(404).send({ message: 'File or directory not found', code: 'NOT_FOUND' })
     if (isFsError(error, 'EEXIST')) return reply.code(409).send({ message: 'This name already exists', code: 'DESTINATION_EXISTS' })
-    if (isFsError(error, 'ENOTEMPTY')) return reply.code(409).send({ message: 'This directory is not empty', code: 'NOT_EMPTY' })
+    if (isFsError(error, 'ENOTEMPTY')) return reply.code(409).send({ message: 'This folder contains protected or unsupported entries, or changed during deletion. Some contents may already have been removed.', code: 'NOT_EMPTY' })
     if (isFsError(error, 'ENOSPC') || isFsError(error, 'EDQUOT')) return reply.code(507).send({ message: 'Storage is full. Free space and resume.', code: 'DISK_FULL' })
     if (isFsError(error, 'EACCES') || isFsError(error, 'EPERM')) return reply.code(403).send({ message: 'Storage access was denied', code: 'STORAGE_PERMISSION' })
     if (isFsError(error, 'EROFS')) return reply.code(403).send({ message: 'Storage is mounted read-only. Enable Read only for this target.', code: 'STORAGE_READ_ONLY' })
@@ -319,7 +320,8 @@ export async function createApp(options: AppOptions = {}) {
     const user = targets.access(requireUser(request), targetId), storage = await targets.backend(targetId); requirePermission(user, 'delete')
     const path = scopedPath(user, request.query.path ?? '/')
     if (path === user.scope) throw new HttpError(400, 'Cannot delete your root directory')
-    await mutate(targetId, async () => { checkActivePath(targetId, path); await storage.remove(path, targetGuard(request, user, 'delete')) })
+    const authorize = targetGuard(request, user, 'delete')
+    await mutate(targetId, () => removeTree(storage, path, () => { authorize(); checkActivePath(targetId, path) }))
     store.audit(user.username, 'file.delete', path, targetId)
     return { ok: true }
   })

@@ -18,7 +18,7 @@ async function dropFolder(locator: Locator, name: string) {
   }, name)
 }
 
-test('folder picker preserves paths, queues separate transfers, and resumes a nested file after reload', async ({ page, context }, testInfo) => {
+test('folder uploads preserve paths and resume after reload; folder deletion removes contents and reports partial failures', async ({ page, context }, testInfo) => {
   const root = process.env.FB_E2E_ROOT!, headers = { 'x-filebrowser-request': '1' }
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
@@ -124,5 +124,32 @@ test('folder picker preserves paths, queues separate transfers, and resumes a ne
     await expect(memberPage.locator('.transfer-row').filter({ hasText: 'ordinary.txt' })).toContainText('Complete')
     expect(await readFile(join(targetRoot, 'Incoming', 'ordinary.txt'), 'utf8')).toBe('file-only upload')
   } finally { await member.close() }
+  await page.goto(`/#/files/${target.id}/Incoming`)
+  await page.getByLabel('Select Project', { exact: true }).check()
+  await page.getByRole('button', { name: 'Delete selected items', exact: true }).click()
+  await expect(page.getByRole('dialog')).toContainText('Folders and all their contents will be permanently deleted.')
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Project', exact: true })).toHaveCount(0)
+  await expect(stat(join(targetRoot, 'Incoming', 'Project'))).rejects.toMatchObject({ code: 'ENOENT' })
+  expect(await readFile(join(targetRoot, 'Incoming', 'ordinary.txt'), 'utf8')).toBe('file-only upload')
+
+  await mkdir(join(targetRoot, 'Incoming', 'Protected', '.filebrowser-private'), { recursive: true })
+  await writeFile(join(targetRoot, 'Incoming', 'Protected', 'removed.txt'), 'removed before failure')
+  await writeFile(join(targetRoot, 'Incoming', 'Protected', '.filebrowser-private', 'keep.txt'), 'private')
+  await page.getByRole('button', { name: 'Refresh files', exact: true }).click()
+  await page.getByLabel('Select Protected', { exact: true }).check()
+  let refreshed = false
+  page.on('request', request => {
+    const url = new URL(request.url())
+    if (request.method() === 'GET' && url.pathname === `/api/targets/${target.id}/files` && url.searchParams.get('path') === '/Incoming') refreshed = true
+  })
+  await page.getByRole('button', { name: 'Delete selected items', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(page.getByRole('dialog')).toContainText('protected or unsupported entries')
+  await expect.poll(() => refreshed).toBe(true)
+  await expect(stat(join(targetRoot, 'Incoming', 'Protected', 'removed.txt'))).rejects.toMatchObject({ code: 'ENOENT' })
+  expect(await readFile(join(targetRoot, 'Incoming', 'Protected', '.filebrowser-private', 'keep.txt'), 'utf8')).toBe('private')
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
   expect(errors).toEqual([])
 })

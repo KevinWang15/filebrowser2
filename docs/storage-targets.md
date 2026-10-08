@@ -23,6 +23,12 @@ Account disabling, password changes and permission edits do not contact storage 
 
 A target's type and location cannot be changed in place: create a new target to point elsewhere. Secret credentials can be renewed while uploads are retained, so an expired credential does not require abandoning a large transfer. Reconnecting or retrying uses the new credentials and verifies the saved checkpoint. Other connection settings require resolving retained uploads first; connection edits also require resolving protocol shares. Name, enabled and read-only flags can change independently. Targets with transfer history or shares must be disabled rather than removed. Disabling retains transfer state and rejects writes; re-enabling permits recovery. Active operations recheck grants before acknowledging progress.
 
+## File and folder deletion
+
+Deleting a folder removes its nested files and folders before removing the folder itself. This works across local, S3, FTP/FTPS, and SFTP targets and requires delete permission within the user's scope; browse permission is not required. The confirmation dialog explicitly includes folder contents. The user's virtual root cannot be deleted, and read-only targets reject deletion.
+
+Unfinished uploads and directory shares block deletion of their containing folder. Delete access and these protections are checked throughout the operation. Private `.filebrowser-*` entries, symlinks, and unsupported native entries are preserved rather than followed or bypassed. If these entries, revoked access, storage errors, or concurrent changes prevent completion, some ordinary contents may already have been removed; the UI reports the failure and refreshes the listing. Recursive deletion is not transactional.
+
 ## Upload capabilities
 
 | Backend | Chunk commit | Recovery and publication | Limits |

@@ -143,6 +143,85 @@ test('folder upload directory creation reuses directories safely and retains str
   assert.equal((await f.request(`/uploads/${session.id}`, 'DELETE')).status, 200)
 })
 
+test('folder deletion recursively removes nested files and empty folders while preserving siblings', async t => {
+  const f = await fixture(t), root = f.options.storageRoot
+  await mkdir(join(root, 'Project', 'Nested', 'Empty'), { recursive: true })
+  await writeFile(join(root, 'Project', 'Nested', '文件 #1.uploading'), 'ordinary completed file')
+  await writeFile(join(root, 'Project', '.dotfile'), 'dotfile')
+  await writeFile(join(root, 'Project-other.txt'), 'keep sibling')
+  await Promise.all(Array.from({ length: 130 }, (_, i) => writeFile(join(root, 'Project', `${i}.txt`), 'delete')))
+  const response = await f.request(`/targets/${f.targetId}/files?path=/Project`, 'DELETE')
+  assert.equal(response.status, 200, await response.clone().text())
+  await assert.rejects(stat(join(root, 'Project')), { code: 'ENOENT' })
+  assert.equal(await readFile(join(root, 'Project-other.txt'), 'utf8'), 'keep sibling')
+  assert.equal((await f.request(`/targets/${f.targetId}/files?path=/`, 'DELETE')).status, 400)
+})
+
+test('recursive deletion preserves unfinished uploads, private state, and symlink destinations', async t => {
+  const f = await fixture(t), root = f.options.storageRoot, endpoint = `/targets/${f.targetId}/files?path=/Project`
+  await mkdir(join(root, 'Project', 'Nested'), { recursive: true })
+  await writeFile(join(root, 'Project', 'keep.txt'), 'untouched while upload is retained')
+  const session = await initialize(f, 'pending.txt', Buffer.from('pending'), '/Project/Nested')
+  const busy = await f.request(endpoint, 'DELETE')
+  assert.equal(busy.status, 409); assert.equal((await busy.json()).code, 'DESTINATION_BUSY')
+  assert.equal(await readFile(join(root, 'Project', 'keep.txt'), 'utf8'), 'untouched while upload is retained')
+  assert.equal((await f.request(`/uploads/${session.id}`, 'DELETE')).status, 200)
+  await mkdir(join(root, 'Project', '.filebrowser-private'))
+  await writeFile(join(root, 'Project', '.filebrowser-private', 'secret'), 'private state')
+  await writeFile(join(f.root, 'outside.txt'), 'outside the target')
+  await symlink(join(f.root, 'outside.txt'), join(root, 'Project', 'escape'))
+  const protectedFolder = await f.request(endpoint, 'DELETE')
+  assert.equal(protectedFolder.status, 409)
+  assert.match((await protectedFolder.json()).message, /protected or unsupported/)
+  assert.equal(await readFile(join(root, 'Project', '.filebrowser-private', 'secret'), 'utf8'), 'private state')
+  assert.equal(await readFile(join(f.root, 'outside.txt'), 'utf8'), 'outside the target')
+})
+
+test('recursive deletion needs only delete permission within scope and rejects read-only access', async t => {
+  const f = await fixture(t), root = f.options.storageRoot
+  await mkdir(join(root, 'team', 'Project', 'Nested'), { recursive: true })
+  await writeFile(join(root, 'team', 'Project', 'Nested', 'file.txt'), 'delete')
+  await writeFile(join(root, 'outside.txt'), 'keep')
+  const permissions = Object.fromEntries(Object.keys(FULL_PERMISSIONS).map(name => [name, name === 'delete']))
+  const created = await f.request('/admin/users', 'POST', { username: 'deleter', password, role: 'user', grants: [{ targetId: f.targetId, scope: '/team', permissions }] })
+  assert.equal(created.status, 201)
+  const adminCookie = f.cookie
+  const login = await f.request('/auth/login', 'POST', { username: 'deleter', password })
+  f.cookie = login.headers.get('set-cookie').split(';')[0]
+  assert.equal((await f.request(`/targets/${f.targetId}/files`)).status, 403)
+  assert.equal((await f.request(`/targets/${f.targetId}/files?path=/Project`, 'DELETE')).status, 200)
+  await assert.rejects(stat(join(root, 'team', 'Project')), { code: 'ENOENT' })
+  assert.equal((await f.request(`/targets/${f.targetId}/files?path=/`, 'DELETE')).status, 400)
+  assert.equal((await f.request(`/targets/${f.targetId}/files?path=/../outside.txt`, 'DELETE')).status, 400)
+  assert.equal(await readFile(join(root, 'outside.txt'), 'utf8'), 'keep')
+  f.cookie = adminCookie
+  await mkdir(join(f.root, 'readonly', 'Project'), { recursive: true })
+  await writeFile(join(f.root, 'readonly', 'Project', 'file.txt'), 'keep readonly')
+  const target = await (await f.request('/admin/targets', 'POST', { ...localTarget(join(f.root, 'readonly')), name: 'Readonly', readOnly: true })).json()
+  assert.equal((await f.request(`/targets/${target.id}/files?path=/Project`, 'DELETE')).status, 403)
+  assert.equal(await readFile(join(f.root, 'readonly', 'Project', 'file.txt'), 'utf8'), 'keep readonly')
+})
+
+test('recursive deletion stops when permissions are revoked between child mutations', async t => {
+  const f = await fixture(t), root = f.options.storageRoot
+  await mkdir(join(root, 'Project'))
+  await writeFile(join(root, 'Project', 'a.txt'), 'first')
+  await writeFile(join(root, 'Project', 'b.txt'), 'must remain')
+  const created = await (await f.request('/admin/users', 'POST', { username: 'deleter', password, role: 'user', grants: [{ targetId: f.targetId, scope: '/', permissions: FULL_PERMISSIONS }] })).json()
+  const adminCookie = f.cookie
+  const login = await f.request('/auth/login', 'POST', { username: 'deleter', password })
+  f.cookie = login.headers.get('set-cookie').split(';')[0]
+  const remove = LocalStorage.prototype.remove
+  t.mock.method(LocalStorage.prototype, 'remove', async function(path, authorize) {
+    await remove.call(this, path, authorize)
+    const changed = await f.request('/admin/users/' + created.id, 'PATCH', { username: created.username, role: 'user', disabled: false, grants: [{ targetId: f.targetId, scope: '/', permissions: READ_PERMISSIONS }] }, { cookie: adminCookie })
+    assert.equal(changed.status, 200)
+  })
+  assert.equal((await f.request(`/targets/${f.targetId}/files?path=/Project`, 'DELETE')).status, 401)
+  await assert.rejects(stat(join(root, 'Project', 'a.txt')), { code: 'ENOENT' })
+  assert.equal(await readFile(join(root, 'Project', 'b.txt'), 'utf8'), 'must remain')
+})
+
 test('folder directory reuse requires create permission and respects scopes without requiring read', async t => {
   const f = await fixture(t), endpoint = `/targets/${f.targetId}/files/directories`
   await mkdir(join(f.options.storageRoot, 'team', 'Existing'), { recursive: true })

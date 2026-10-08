@@ -341,7 +341,7 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
       if (!failed) setDialog(null)
       if (dialog.entries.some(entry => entry.path === viewing)) setViewing(null)
       setSelected(new Set()); await load(path)
-      notify(deleted === 1 ? 'Item deleted.' : `${deleted} items deleted.`)
+      if (deleted) notify(deleted === 1 ? 'Item deleted.' : `${deleted} items deleted.`)
     }} />}
   </div>
 }

@@ -7,7 +7,7 @@ export const PERMISSION_META: Record<Permission, { label: string; description: s
   upload: { label: 'Upload', description: 'Add files to their folder', icon: IconUpload },
   create: { label: 'Create folders', description: 'Organize with new folders', icon: IconFolderPlus },
   rename: { label: 'Rename', description: 'Change file and folder names', icon: IconPencil },
-  delete: { label: 'Delete', description: 'Remove files and empty folders', icon: IconTrash },
+  delete: { label: 'Delete', description: 'Remove files, folders, and their contents', icon: IconTrash },
 }
 
 export const can = (user: TargetAccess | null, permission: keyof Permissions) =>

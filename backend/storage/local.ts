@@ -206,7 +206,7 @@ export class LocalStorage implements StorageBackend, SequentialUploadBackend, Di
     const native = await this.safePath(path)
     const info = await lstat(native)
     authorize()
-    // Empty directories only: do not recursively delete a user's tree by accident.
+    // removeTree visits children first; this primitive never bypasses path checks.
     if (info.isDirectory()) await rmdir(native)
     else await unlink(native)
     await syncDirectory(dirname(native))

@@ -104,6 +104,7 @@ for (const type of Object.keys(connections)) {
     assert.equal((await f.request(fileApi + '/directories', { directory: '/', name: directory.slice(1) })).status, 200)
     const bytes = Buffer.alloc(chunkSize * 2 + 193, 0x59); bytes[chunkSize] = 0x71; bytes[bytes.length - 1] = 0x36
     const session = await init(f, 'payload.bin', bytes, directory)
+    assert.equal((await f.request(fileApi + '?path=' + directory, undefined, 'DELETE')).status, 409, 'recursive deletion cannot discard an unfinished child upload')
     assert.equal((await f.request(fileApi + '/directories', { directory: '/', name: directory.slice(1), existOk: true })).status, 200, 'folder uploads can reuse a remote directory with an active child transfer')
     assert.equal((await f.request(fileApi + '/directories', { directory, name: 'Nested', existOk: true })).status, 200)
     assert.equal((await f.request(fileApi + '/directories', { directory, name: 'Nested', existOk: true })).status, 200)
@@ -136,8 +137,13 @@ for (const type of Object.keys(connections)) {
     const unicodePath = encodeURIComponent(directory + '/' + unicodeName)
     assert.deepEqual(Buffer.from(await (await f.request(fileApi + '/content?path=' + unicodePath)).arrayBuffer()), unicodeBytes)
     assert.equal((await f.request(fileApi + '?path=' + unicodePath, undefined, 'DELETE')).status, 200)
-    assert.equal((await f.request(fileApi + '?path=' + directory + '/Nested', undefined, 'DELETE')).status, 200)
-    assert.equal((await f.request(fileApi + '?path=' + directory, undefined, 'DELETE')).status, 200)
+    assert.equal((await f.request(fileApi + '/directories', { directory: directory + '/Nested', name: 'Empty' })).status, 200)
+    const nested = await init(f, '文件 #1.uploading', unicodeBytes, directory + '/Nested')
+    assert.equal((await send(f, nested, 0, unicodeBytes)).status, 200)
+    assert.equal((await f.request(`/uploads/${nested.id}/complete`, {})).status, 200)
+    const removed = await f.request(fileApi + '?path=' + directory, undefined, 'DELETE')
+    assert.equal(removed.status, 200, await removed.clone().text())
+    assert.equal((await f.request(fileApi + '?path=' + directory)).status, 404, 'recursive deletion removes child files and directory markers')
     assert.deepEqual(await readdir(join(f.stateDirectory, 'targets', f.targetId)), [])
     if (type === 's3') assert.equal((await client.send(new ListMultipartUploadsCommand({ Bucket: s3.bucket, Prefix: f.targetConfig.connection.prefix }))).Uploads?.length ?? 0, 0)
   })
@@ -155,6 +161,25 @@ for (const type of Object.keys(connections)) {
     })
   }
 }
+
+test('s3: recursive deletion handles paginated implicit folders and preserves protected keys and adjacent prefixes', { skip: !enabled, timeout: 120_000 }, async t => {
+  const client = await bucket(); t.after(() => client.destroy())
+  const f = await fixture(t, 's3'), prefix = f.targetConfig.connection.prefix, api = `/targets/${f.targetId}/files`
+  // More than one ListObjectsV2 page, without explicit directory markers.
+  for (let start = 0; start < 1005; start += 32) {
+    await Promise.all(Array.from({ length: Math.min(32, 1005 - start) }, (_, i) => client.send(new PutObjectCommand({ Bucket: s3.bucket, Key: `${prefix}/Project/Nested/${start + i}.txt`, Body: 'delete' }))))
+  }
+  await client.send(new PutObjectCommand({ Bucket: s3.bucket, Key: `${prefix}/Project-other/keep.txt`, Body: 'keep' }))
+  const removed = await f.request(api + '?path=/Project', undefined, 'DELETE')
+  assert.equal(removed.status, 200, await removed.clone().text())
+  assert.equal((await f.request(api + '?path=/Project')).status, 404)
+  assert.equal(await (await f.request(api + '/content?path=/Project-other/keep.txt')).text(), 'keep')
+  for (const key of ['Protected/', 'Protected/.filebrowser-state/secret']) await client.send(new PutObjectCommand({ Bucket: s3.bucket, Key: `${prefix}/${key}`, Body: 'private' }))
+  const blocked = await f.request(api + '?path=/Protected', undefined, 'DELETE')
+  assert.equal(blocked.status, 409); assert.match((await blocked.json()).message, /protected or unsupported/)
+  assert.equal((await f.request(api + '?path=/Protected')).status, 200, 'private keys prevent removing the directory marker')
+  for (const key of ['Protected/', 'Protected/.filebrowser-state/secret', 'Project-other/keep.txt']) await client.send(new DeleteObjectCommand({ Bucket: s3.bucket, Key: `${prefix}/${key}` }))
+})
 
 test('SFTP host identity is enforced and remote failures never leak credentials', { skip: !enabled, timeout: 30_000 }, async t => {
   const f = await fixture(t, 'sftp')

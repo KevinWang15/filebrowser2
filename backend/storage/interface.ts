@@ -11,6 +11,7 @@ export interface StorageBackend {
   open(path: string, range?: { start: number; end: number }): Promise<Readable>
   mkdir(path: string, authorize?: () => void): Promise<void>
   move(source: string, destination: string, authorize?: () => void): Promise<void>
+  // Remove a file or an empty directory; removeTree orchestrates recursive deletion.
   remove(path: string, authorize?: () => void): Promise<void>
   close(): void
   space(path?: string): Promise<{ total: number | null; available: number | null }>
