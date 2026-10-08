@@ -1,0 +1,32 @@
+services:
+  filebrowser:
+    build:
+      target: runtime
+    environment:
+      FB_SMB_ENABLED: "true"
+      FB_SMB_CONTROL_DIR: /state/protocols
+      FB_SMB_PUBLIC_HOST: "${FB_SMB_PUBLIC_HOST:-}"
+    volumes:
+      - protocol-control:/state/protocols
+  smb:
+    build:
+      context: .
+      target: smb
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${FB_SMB_BIND_ADDRESS:-127.0.0.1}:${FB_SMB_PUBLIC_PORT:-445}:445"
+    volumes:
+      - files:/files:ro
+      - protocol-control:/control
+      - samba-state:/samba-state
+    healthcheck:
+      test: ["CMD", "node", "agent.mjs", "--health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    stop_grace_period: 10s
+
+volumes:
+  protocol-control:
+  samba-state:

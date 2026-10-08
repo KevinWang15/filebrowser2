@@ -1,0 +1,73 @@
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    environment:
+      FB_UPLOAD_CHUNK_SIZE: '5242880'
+      FB_LOG_LEVEL: warn
+      NODE_EXTRA_CA_CERTS: /fixture-trust/ftp-fixture.crt
+    volumes:
+      - target-files:/files
+      - target-state:/state
+      - ${FB_TARGET_VERIFY_OUTPUT:-./verification/targets}:/fixture-trust:ro
+    ports:
+      - '127.0.0.1:3330:3000'
+    networks:
+      default:
+        aliases: [filebrowser.internal]
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  minio:
+    build:
+      context: .
+      dockerfile: tests/fixtures/minio.Dockerfile
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: fixture-access
+      MINIO_ROOT_PASSWORD: container-fixture-secret
+    volumes:
+      - target-s3:/data
+  remotes:
+    init: true
+    build:
+      context: .
+      dockerfile: tests/fixtures/remotes.Dockerfile
+    volumes:
+      - target-remote:/srv/remote
+    healthcheck:
+      test: ['CMD', 'node', '-e', "const net=require('node:net');Promise.all([22,2121,2122].map(port=>new Promise((resolve,reject)=>{const s=net.connect(port,'127.0.0.1',()=>{s.destroy();resolve()});s.on('error',reject)}))).then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  runner:
+    build:
+      context: .
+      target: verification
+    init: true
+    shm_size: 1gb
+    environment:
+      FB_VERIFY_URL: http://filebrowser.internal:3000
+      FB_VERIFY_OUTPUT: /evidence/targets
+    volumes:
+      - ./verification:/evidence
+      - ./scripts:/app/scripts:ro
+      - ./tests:/app/tests:ro
+      - target-files:/verify-files:ro
+      - target-state:/verify-state:ro
+      - target-remote:/verify-remote:ro
+    depends_on:
+      app:
+        condition: service_healthy
+      remotes:
+        condition: service_healthy
+      minio:
+        condition: service_started
+volumes:
+  target-files:
+  target-state:
+  target-s3:
+  target-remote:

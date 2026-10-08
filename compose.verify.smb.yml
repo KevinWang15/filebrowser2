@@ -1,0 +1,52 @@
+services:
+  app:
+    group_add:
+      - "130001"
+    environment:
+      FB_SMB_ENABLED: "true"
+      FB_SMB_CONTROL_DIR: /state/protocols
+    volumes:
+      - verify-protocol-control:/state/protocols
+      - verify-files-second:/files-second
+  smb:
+    build:
+      context: .
+      target: smb
+    init: true
+    environment:
+      FB_SMB_ALLOWED_ROOTS: '["/files","/files-second"]'
+    volumes:
+      - verify-files:/files:ro
+      - verify-files-second:/files-second:ro
+      - verify-protocol-control:/control
+      - verify-samba-state:/samba-state
+    healthcheck:
+      test: ["CMD", "node", "agent.mjs", "--health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  smb-client:
+    build:
+      context: .
+      target: smb-verification
+    init: true
+    volumes:
+      - ./verification:/evidence
+      - verify-files:/verify-files
+      - verify-files-second:/verify-files-second
+      - ./scripts:/app/scripts:ro
+    environment:
+      FB_VERIFY_URL: http://app:3000
+      FB_VERIFY_SMB_HOST: smb
+      FB_VERIFY_SUPPLEMENTARY_GID: "130001"
+    command: ["node", "scripts/verify-container-shares.mjs"]
+    depends_on:
+      app:
+        condition: service_healthy
+      smb:
+        condition: service_healthy
+
+volumes:
+  verify-files-second:
+  verify-protocol-control:
+  verify-samba-state:
