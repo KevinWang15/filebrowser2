@@ -4,6 +4,7 @@ self.onmessage = async (event: MessageEvent<{ file: File; chunkSize: number }>) 
   const file = event.data.file
   const chunkSize = event.data.chunkSize
   try {
+    if (file.size === 0) await file.arrayBuffer()
     const hasher = await createSHA256()
     const hashes: string[] = []
     let reportedAt = 0

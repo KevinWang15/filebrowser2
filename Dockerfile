@@ -14,7 +14,7 @@ COPY --from=build /app/node_modules/ ./node_modules/
 COPY . .
 COPY --from=build /app/dist/ ./dist/
 RUN ln -s /home/pptruser/.cache/puppeteer/chrome/*/chrome-linux64/chrome /usr/local/bin/filebrowser-chromium
-ENV FB_CHROMIUM_PATH=/usr/local/bin/filebrowser-chromium
+ENV FB_CHROMIUM_PATH=/usr/local/bin/filebrowser-chromium LANG=C.UTF-8 LC_ALL=C.UTF-8
 CMD ["npm", "run", "check"]
 
 FROM node:24-bookworm-slim AS runtime-base

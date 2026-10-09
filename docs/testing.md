@@ -13,6 +13,8 @@ npm run test:e2e
 
 `npm run check` runs lint, type checks, frontend/backend builds and Node tests. CI supplies a mounted-filesystem fixture, then installs Chromium and runs the browser workflow. No database service or generated ORM client is needed. An existing Chromium can be selected with `FB_CHROMIUM_PATH`.
 
+The containerized browser runner uses the installed `C.UTF-8` locale. An unavailable locale can make Chromium report files under Unicode directories as unreadable, zero-byte sources. Folder-picker checks validate the browser's native relative paths and sizes before verifying uploaded bytes. The hash worker also reads apparently empty sources so unreadable files fail rather than silently publishing an empty upload; genuine empty files remain supported.
+
 Backend tests cover permissions, first-run setup, authenticated file operations, actual 100 MiB streaming, corrupt/incomplete chunks, interrupted connections, duplicate commits, missing data, publication conflicts, cancellation, and SIGKILL recovery at durable transitions. The browser workflow uploads 101 MiB, interrupts the second chunk, reloads, verifies the source manifest, and completes with matching bytes.
 
 Archive checks cover binary and Unicode contents, empty directories, deduplicated mixed selections, private-state and unfinished-upload exclusion, scopes, permission changes, expiring single-use links, limits, backpressure and client disconnects. Read-only checks cover administrator write rejection, state isolation and retention of interrupted uploads for a later writable restart. Browser checks download real TAR files and exercise Ctrl/Command+Up navigation.

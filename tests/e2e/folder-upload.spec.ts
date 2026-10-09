@@ -67,7 +67,16 @@ test('folder uploads preserve paths and resume after reload; folder deletion rem
   })
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Choose folder', exact: true }).click()
-  await (await chooser).setFiles(sourceRoot)
+  const picker = await chooser
+  await picker.element().evaluate(element => element.addEventListener('change', () => {
+    const files = Array.from((element as HTMLInputElement).files!, file => ({ path: file.webkitRelativePath, size: file.size }))
+    element.setAttribute('data-test-selected-files', JSON.stringify(files))
+  }, { capture: true, once: true }))
+  await picker.setFiles(sourceRoot)
+  const selected: { path: string; size: number }[] = JSON.parse((await picker.element().getAttribute('data-test-selected-files'))!)
+  expect(selected.sort((first, second) => first.path.localeCompare(second.path))).toEqual(
+    Array.from(sourceFiles, ([path, content]) => ({ path: 'Project/' + path, size: content.length })).sort((first, second) => first.path.localeCompare(second.path)),
+  )
   const rows = page.locator('.transfer-row').filter({ hasText: 'Folder uploads ·' })
   await expect(rows).toHaveCount(sourceFiles.size)
   await expect.poll(() => interrupted).toBe(true)

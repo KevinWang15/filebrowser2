@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { build } from 'esbuild'
 import { droppedFiles, selectedFiles, uploadDestination } from '../frontend/lib/upload-files.ts'
 
 const fileEntry = file => ({ name: file.name, isFile: true, isDirectory: false, file: resolve => queueMicrotask(() => resolve(file)) })
@@ -19,6 +20,28 @@ test('folder selections preserve their root and nested paths independently of th
   assert.deepEqual(sources.map(source => uploadDestination(source, '/Incoming').directory), ['/Incoming/Project/文档 #1', '/Incoming/Project/Other'])
   assert.deepEqual(uploadDestination(sources[0], '/').folders, [{ directory: '/', name: 'Project' }, { directory: '/Project', name: '文档 #1' }])
   assert.equal(uploadDestination(selectedFiles([new File([], 'empty.txt')])[0], '/').directory, '/')
+})
+
+test('the hash worker reads empty sources and rejects unreadable files instead of completing an empty manifest', async () => {
+  const previous = globalThis.self, messages = []
+  const worker = { postMessage: message => messages.push(message) }
+  try {
+    globalThis.self = worker
+    const { outputFiles } = await build({ entryPoints: ['frontend/hash.worker.ts'], bundle: true, format: 'esm', write: false, logLevel: 'silent' })
+    await import('data:text/javascript;base64,' + Buffer.from(outputFiles[0].contents).toString('base64'))
+    await worker.onmessage({ data: { file: new File([], 'empty.txt'), chunkSize: 65536 } })
+    assert.equal(messages.length, 1)
+    assert.equal(messages[0].type, 'done')
+    assert.deepEqual(messages[0].hashes, [])
+    messages.length = 0
+    const unreadable = new File([], 'unreadable.txt')
+    unreadable.arrayBuffer = async () => { throw new DOMException('The source file could not be read', 'NotReadableError') }
+    await worker.onmessage({ data: { file: unreadable, chunkSize: 65536 } })
+    assert.deepEqual(messages, [{ type: 'error', message: 'The source file could not be read' }])
+  } finally {
+    if (previous === undefined) delete globalThis.self
+    else globalThis.self = previous
+  }
 })
 
 test('unsafe folder paths, mismatched filenames, and overlong paths are rejected before queueing', () => {
