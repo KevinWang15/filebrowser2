@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import {
-  IconAlertTriangle, IconArrowUp, IconCloudUpload, IconCopy, IconDownload, IconExternalLink, IconFolderOpen, IconFolderPlus, IconHome2,
+  IconAlertTriangle, IconArrowUp, IconCheck, IconCloudUpload, IconCopy, IconDownload, IconExternalLink, IconFolderOpen, IconFolderPlus, IconHome2,
   IconInfoCircle, IconLayoutGrid, IconLayoutList, IconLayoutSidebarRight, IconLayoutSidebarRightFilled, IconPencil, IconRefresh, IconSearch,
   IconSelectAll, IconSortAscending, IconTrash, IconUpload, IconX, IconChevronRight,
 } from '@tabler/icons-react'
@@ -36,7 +36,9 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
 }) {
   const notify = useNotify()
   const [listing, setListing] = useState<Listing>({ path: '', entries: [], error: '' })
-  const [reloading, setReloading] = useState(false)
+  const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success'>('idle')
+  const refreshController = useRef<AbortController | null>(null)
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [search, setSearch] = useState('')
   const [layout, setLayout] = usePref('layout', 'list', ['list', 'grid'] as const)
   const [sort, setSort] = usePref<SortKey>('sort', 'name', SORT_KEYS)
@@ -65,25 +67,41 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
   // Path changes reset view state during render rather than in an effect, so the old folder never flashes.
   const [shownPath, setShownPath] = useState(path)
   if (shownPath !== path) {
-    setShownPath(path); setSelected(new Set()); setCursor(null); setAnchor(null); setSearch(''); setViewing(null)
+    setShownPath(path); setSelected(new Set()); setCursor(null); setAnchor(null); setSearch(''); setViewing(null); setRefreshState('idle')
   }
 
   const load = useCallback((target: string, signal?: AbortSignal) => {
-    if (currentPath.current !== target) return Promise.resolve()
+    if (currentPath.current !== target) return Promise.resolve(false)
     const request = ++listingRequest.current
     // Manual and upload-triggered refreshes can finish after navigation or a newer refresh.
     const current = () => !signal?.aborted && currentPath.current === target && listingRequest.current === request
     return api<{ entries: FileEntry[] }>(targetFiles(user.targetId) + '?path=' + encodeURIComponent(target), { signal })
-      .then(data => { if (current()) setListing({ path: target, entries: data.entries, error: '' }) })
-      .catch(error => { if (current()) setListing({ path: target, entries: [], error: errorMessage(error) }) })
+      .then(data => { if (!current()) return false; setListing({ path: target, entries: data.entries, error: '' }); return true })
+      .catch(error => { if (current()) setListing({ path: target, entries: [], error: errorMessage(error) }); return false })
   }, [user.targetId])
   useEffect(() => {
     currentPath.current = path
     const controller = new AbortController()
     void load(path, controller.signal)
-    return () => { currentPath.current = null; controller.abort() }
+    return () => {
+      currentPath.current = null; controller.abort()
+      refreshController.current?.abort(); refreshController.current = null
+      if (refreshTimer.current !== null) clearTimeout(refreshTimer.current)
+      refreshTimer.current = null
+    }
   }, [path, load])
-  const refresh = useCallback(async () => { setReloading(true); try { await load(path) } finally { setReloading(false) } }, [load, path])
+  const refresh = useCallback(async () => {
+    if (refreshController.current || currentPath.current !== path) return
+    if (refreshTimer.current !== null) clearTimeout(refreshTimer.current)
+    refreshTimer.current = null
+    const controller = new AbortController(); refreshController.current = controller
+    setRefreshState('loading')
+    const refreshed = await load(path, controller.signal)
+    if (refreshController.current !== controller) return
+    refreshController.current = null
+    setRefreshState(refreshed ? 'success' : 'idle')
+    if (refreshed) refreshTimer.current = setTimeout(() => { refreshTimer.current = null; setRefreshState('idle') }, 600)
+  }, [load, path])
 
   // Nested uploads can create new child folders, so ancestors also refresh on session changes.
   const transferKey = transfers.filter(t => t.targetId === user.targetId && (t.directory === path || t.directory.startsWith(path === '/' ? '/' : path + '/'))).map(t => `${t.session?.id ?? t.id}:${t.state === 'completed' ? 1 : 0}`).sort().join()
@@ -233,7 +251,7 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
     if (event.key.toLowerCase() === 'n' && can(user, 'create')) { event.preventDefault(); setDialog({ kind: 'folder' }) }
     if (event.key.toLowerCase() === 'u' && can(user, 'upload')) { event.preventDefault(); onUpload() }
     if (event.key.toLowerCase() === 'i') { event.preventDefault(); setDetails(details === 'open' ? 'closed' : 'open') }
-    if (event.key.toLowerCase() === 'r') { event.preventDefault(); void refresh() }
+    if (event.key.toLowerCase() === 'r') { event.preventDefault(); if (!event.repeat) void refresh() }
   })
   useEffect(() => {
     const listener = (event: KeyboardEvent) => onKey(event)
@@ -297,7 +315,11 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
           const rect = event.currentTarget.getBoundingClientRect()
           setMenu({ label: 'Sort by', anchor: { x: rect.right, y: rect.bottom + 4, align: 'end' }, items: SORT_KEYS.map(key => ({ label: SORT_LABELS[key] + (key === sort ? order === 'asc' ? ' ↑' : ' ↓' : ''), onSelect: () => onSort(key) })) })
         }}><IconSortAscending size={14} />{SORT_LABELS[sort]}</button>}
-        <button type="button" className="icon-btn" aria-label="Refresh files" data-tip="Refresh (R)" onClick={() => void refresh()}><IconRefresh size={15} className={reloading ? 'spin' : ''} /></button>
+        <button type="button" className="icon-btn refresh-button" aria-label="Refresh files" aria-busy={refreshState === 'loading'} data-tip="Refresh (R)"
+          data-state={refreshState} disabled={refreshState === 'loading'} onClick={() => void refresh()}>
+          <IconRefresh size={15} aria-hidden="true" className={refreshState === 'loading' ? 'spin' : ''} />
+          <span className="refresh-result" aria-hidden="true"><IconCheck size={15} /></span>
+        </button>
         <Segmented size="sm" label="Layout" value={layout} onChange={setLayout} options={[
           { value: 'list', label: 'List view', icon: IconLayoutList, iconOnly: true }, { value: 'grid', label: 'Grid view', icon: IconLayoutGrid, iconOnly: true },
         ]} />

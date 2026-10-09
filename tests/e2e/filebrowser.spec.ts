@@ -151,7 +151,7 @@ test('setup, file operations, worker hashing, reload resume, scoped users, and m
   await page.getByRole('button', { name: 'Team documents', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'This folder is empty', exact: true })).toBeVisible()
   await releaseRoot!()
-  await expect(page.getByRole('button', { name: 'Refresh files', exact: true }).locator('svg')).not.toHaveClass(/spin/)
+  await expect(page.getByRole('button', { name: 'Refresh files', exact: true }).locator(':scope > svg')).not.toHaveClass(/spin/)
   await expect(page.getByRole('heading', { name: 'This folder is empty', exact: true })).toBeVisible()
   await page.unroute(rootListing)
   await page.getByRole('button', { name: 'Upload files', exact: true }).click()
