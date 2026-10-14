@@ -91,7 +91,7 @@ jobs:
             docker rm -f "$container_id"
             trap - EXIT
           done
-      - uses: sigstore/cosign-installer@v4.1.0
+      - uses: sigstore/cosign-installer@v4.1.2
         if: github.event_name != 'pull_request'
       - name: Sign container digest
         if: github.event_name != 'pull_request'
