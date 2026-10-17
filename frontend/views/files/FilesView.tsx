@@ -2,9 +2,10 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type
 import {
   IconAlertTriangle, IconArrowUp, IconCheck, IconCloudUpload, IconCopy, IconDownload, IconExternalLink, IconFolderOpen, IconFolderPlus, IconHome2,
   IconInfoCircle, IconLayoutGrid, IconLayoutList, IconLayoutSidebarRight, IconLayoutSidebarRightFilled, IconPencil, IconRefresh, IconSearch,
-  IconSelectAll, IconSortAscending, IconTrash, IconUpload, IconX, IconChevronRight,
+  IconSelectAll, IconSortAscending, IconTrash, IconUpload, IconX, IconChevronRight, IconFileZip,
 } from '@tabler/icons-react'
-import type { FileEntry, TargetAccess } from '@/shared/types'
+import type { ArchiveJob, FileEntry, TargetAccess } from '@/shared/types'
+import { archiveFormat } from '@/shared/archive-rules'
 import { targetFiles } from '../../lib/targets'
 import { api, errorMessage } from '../../api'
 import { Menu, type MenuAnchor, type MenuItem } from '../../components/Menu'
@@ -22,16 +23,17 @@ import { DeleteDialog, NameDialog } from './Dialogs'
 import { FileGrid, FileTable, SkeletonRows } from './FileList'
 import { FileViewer } from './FileViewer'
 import { Inspector } from './Inspector'
+import { ArchiveDialog } from './ArchiveDialog'
 
 type Listing = { path: string; entries: FileEntry[]; error: string }
-type Dialog = { kind: 'folder' } | { kind: 'rename'; entry: FileEntry } | { kind: 'delete'; entries: FileEntry[] }
+type Dialog = { kind: 'folder' } | { kind: 'rename'; entry: FileEntry } | { kind: 'delete'; entries: FileEntry[] } | { kind: 'compress' | 'decompress'; entries: FileEntry[] }
 const ROW_HEIGHT = { compact: 32, comfortable: 40 } as const
 const HEADER_HEIGHT = 30
 
 const join = (directory: string, name: string) => (directory === '/' ? '' : directory) + '/' + name
 
-export function FilesView({ targetName, path, user, transfers, density, folderRequest, onNavigate, onTargets, onUpload, onAddFiles, onTransfers }: {
-  targetName: string; path: string; user: TargetAccess; transfers: Transfer[]; density: 'compact' | 'comfortable'; folderRequest: number
+export function FilesView({ targetName, path, user, transfers, archiveJobs, density, folderRequest, onNavigate, onTargets, onUpload, onAddFiles, onTransfers }: {
+  targetName: string; path: string; user: TargetAccess; transfers: Transfer[]; archiveJobs: ArchiveJob[]; density: 'compact' | 'comfortable'; folderRequest: number
   onNavigate: (path: string) => void; onTargets: () => void; onUpload: () => void; onAddFiles: (files: UploadSource[], directory: string) => void; onTransfers: () => void
 }) {
   const notify = useNotify()
@@ -105,6 +107,7 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
 
   // Nested uploads can create new child folders, so ancestors also refresh on session changes.
   const transferKey = transfers.filter(t => t.targetId === user.targetId && (t.directory === path || t.directory.startsWith(path === '/' ? '/' : path + '/'))).map(t => `${t.session?.id ?? t.id}:${t.state === 'completed' ? 1 : 0}`).sort().join()
+    + '|' + archiveJobs.filter(job => job.targetId === user.targetId).map(job => job.id + ':' + job.status).join()
   const lastKey = useRef(transferKey)
   useEffect(() => {
     if (lastKey.current === transferKey) return
@@ -125,6 +128,9 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
     return sortEntries(query ? entries.filter(entry => entry.name.toLowerCase().includes(query)) : entries, sort, order === 'asc')
   }, [entries, search, sort, order])
   const picked = useMemo(() => visible.filter(entry => selected.has(entry.path) && !entry.uploading), [visible, selected])
+  const canCompress = can(user, 'download') && can(user, 'upload')
+  const canDecompress = canCompress && can(user, 'create')
+  const extractable = (entry: FileEntry) => entry.kind === 'file' && !entry.uploading && archiveFormat(entry.name) !== null
   const cursorEntry = visible.find(entry => entry.path === cursor) ?? null
   const viewEntry = viewing ? entries.find(entry => entry.path === viewing) ?? null : null
   const files = useMemo(() => visible.filter(entry => entry.kind === 'file'), [visible])
@@ -175,11 +181,14 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
     const downloadable = targets.filter(item => !item.uploading)
     if (many) return [
       ...(can(user, 'download') && downloadable.length ? [{ label: `Download ${downloadable.length} items`, icon: IconDownload, onSelect: () => downloadItems(downloadable) }] : []),
+      ...(canCompress && downloadable.length ? [{ label: 'Compress…', icon: IconFileZip, onSelect: () => setDialog({ kind: 'compress', entries: downloadable }) }] : []),
       ...(can(user, 'delete') ? ['separator' as const, { label: `Delete ${targets.length} items`, icon: IconTrash, danger: true, shortcut: 'Del', onSelect: () => remove(targets) }] : []),
     ]
     return [
       { label: entry.kind === 'directory' ? 'Open folder' : 'Open', icon: entry.kind === 'directory' ? IconFolderOpen : IconExternalLink, shortcut: '↵', onSelect: () => open(entry) },
       ...(ready && can(user, 'download') ? [{ label: entry.kind === 'directory' ? 'Download folder' : 'Download', icon: IconDownload, onSelect: () => downloadItems([entry]) }] : []),
+      ...(ready && canCompress ? [{ label: 'Compress…', icon: IconFileZip, onSelect: () => setDialog({ kind: 'compress', entries: [entry] }) }] : []),
+      ...(canDecompress && extractable(entry) ? [{ label: 'Decompress…', icon: IconFileZip, onSelect: () => setDialog({ kind: 'decompress', entries: [entry] }) }] : []),
       ...(entry.uploading ? [{ label: 'View in Transfers', icon: IconCloudUpload, onSelect: onTransfers }] : []),
       'separator',
       ...(ready && can(user, 'rename') ? [{ label: 'Rename', icon: IconPencil, shortcut: 'F2', onSelect: () => rename(entry) }] : []),
@@ -299,6 +308,8 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
         <span className="dim mono">{formatBytes(picked.reduce((sum, entry) => sum + (entry.kind === 'file' ? entry.size : 0), 0))}</span>
         <span className="toolbar-sep" />
         {can(user, 'download') && <button type="button" className="btn btn-sm btn-ghost" onClick={() => downloadItems(picked)}><IconDownload size={14} />Download</button>}
+        {canCompress && <button type="button" className="btn btn-sm btn-ghost" onClick={() => setDialog({ kind: 'compress', entries: picked })}><IconFileZip size={14} />Compress</button>}
+        {canDecompress && picked.length === 1 && extractable(picked[0]) && <button type="button" className="btn btn-sm btn-ghost" onClick={() => setDialog({ kind: 'decompress', entries: picked })}><IconFileZip size={14} />Decompress</button>}
         {picked.length === 1 && can(user, 'rename') && <button type="button" className="btn btn-sm btn-ghost" aria-label="Rename selected file" onClick={() => rename(picked[0])}><IconPencil size={14} />Rename</button>}
         {picked.length === 1 && <button type="button" className="btn btn-sm btn-ghost" onClick={() => copyPath(picked[0].path)}><IconCopy size={14} />Copy path</button>}
         {can(user, 'delete') && <button type="button" className="btn btn-sm btn-ghost is-danger" aria-label="Delete selected items" onClick={() => remove(picked)}><IconTrash size={14} />Delete</button>}
@@ -350,6 +361,10 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
     </div>
 
     {menu && <Menu {...menu} onClose={() => setMenu(null)} />}
+    {(dialog?.kind === 'compress' || dialog?.kind === 'decompress') && <ArchiveDialog targetId={user.targetId} operation={dialog.kind} entries={dialog.entries} directory={path} onClose={() => setDialog(null)} onStarted={() => {
+      const operation = dialog.kind === 'compress' ? 'Compress' : 'Decompress'
+      setDialog(null); notify(operation + ' started. View progress in Transfers.'); onTransfers()
+    }} />}
     {viewEntry && !dialog && <FileViewer entry={viewEntry} siblings={files} user={user} onClose={() => setViewing(null)} onStep={entry => { setViewing(entry.path); select(entry.uploading ? [] : [entry.path], entry.path) }}
       onDownload={() => downloadItems([viewEntry])} onRename={() => rename(viewEntry)} onDelete={() => remove([viewEntry])} onCopyPath={() => copyPath(viewEntry.path)} onTransfers={onTransfers} />}
     {dialog?.kind === 'folder' && <NameDialog targetId={user.targetId} mode="folder" directory={path} onClose={() => setDialog(null)} onDone={async name => {

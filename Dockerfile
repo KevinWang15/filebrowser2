@@ -1,10 +1,14 @@
 FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates xz-utils && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build && node scripts/package-release.mjs /runtime
+
+FROM build AS archive-runtime
+ARG TARGETARCH
+RUN node scripts/install-7zip.mjs /opt/7zip "$TARGETARCH"
 
 FROM ghcr.io/puppeteer/puppeteer:25.9.0 AS verification
 USER root
@@ -13,11 +17,15 @@ WORKDIR /app
 COPY --from=build /app/node_modules/ ./node_modules/
 COPY . .
 COPY --from=build /app/dist/ ./dist/
+COPY --from=archive-runtime /opt/7zip/ /opt/7zip/
+ENV FB_7ZIP_PATH=/opt/7zip/7zz
 RUN ln -s /home/pptruser/.cache/puppeteer/chrome/*/chrome-linux64/chrome /usr/local/bin/filebrowser-chromium
 ENV FB_CHROMIUM_PATH=/usr/local/bin/filebrowser-chromium LANG=C.UTF-8 LC_ALL=C.UTF-8
 CMD ["npm", "run", "check"]
 
 FROM node:24-bookworm-slim AS runtime-base
+COPY --from=archive-runtime /opt/7zip/ /opt/7zip/
+ENV FB_7ZIP_PATH=/opt/7zip/7zz
 COPY --from=build /etc/ssl/certs/ /etc/ssl/certs/
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources && apt-get update && apt-get install -y --no-install-recommends ca-certificates samba samba-common-bin passwd && rm -rf /var/lib/apt/lists/*
 ARG FB_BUILD_COMMIT=local

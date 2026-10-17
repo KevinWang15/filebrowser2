@@ -87,6 +87,17 @@ export interface ChunkAttempt {
   parts: { index: number; offset: number; size: number }[]
 }
 
+export const ARCHIVE_FORMATS = ['tar.gz', 'tar', 'zip', '7z'] as const
+export type ArchiveFormat = typeof ARCHIVE_FORMATS[number]
+export type ArchiveJobStatus = 'running' | 'completed' | 'failed' | 'canceled'
+export interface ArchiveJob {
+  id: string; targetId: string; operation: 'compress' | 'decompress'; format: ArchiveFormat
+  paths: string[]; destination: string; status: ArchiveJobStatus
+  phase: 'scanning' | 'compressing' | 'decompressing' | 'saving' | 'finished'
+  processedBytes: number; totalBytes: number | null; processedFiles: number; totalFiles: number | null
+  currentFile: string; progress: number | null; error: string | null; createdAt: string; updatedAt: string
+}
+
 export interface AuditEntry {
   id: number
   actor: string

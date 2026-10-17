@@ -126,6 +126,22 @@ for (const type of Object.keys(connections)) {
     const ranged = await fetch(`${f.address}/api${fileApi}/content?path=${directory}/payload.bin`, { headers: { cookie: f.cookie, range: `bytes=${chunkSize - 2}-${chunkSize + 2}` } }); assert.equal(ranged.status, 206); assert.deepEqual(Buffer.from(await ranged.arrayBuffer()), bytes.subarray(chunkSize - 2, chunkSize + 3))
     const head = await fetch(`${f.address}/api${fileApi}/content?path=${directory}/payload.bin`, { method: 'HEAD', headers: { cookie: f.cookie } }); assert.equal(head.headers.get('content-length'), String(bytes.length)); assert.equal((await head.arrayBuffer()).byteLength, 0)
     const ticket = await (await f.request(fileApi + '/archive-tickets', { paths: [directory] })).json(), archive = await f.request(ticket.url.slice(4)); assert.equal(archive.status, 200); assert.ok((await archive.arrayBuffer()).byteLength > bytes.length)
+    const runArchive = async body => {
+      const started = await f.request(`/targets/${f.targetId}/archive-jobs`, { directory, ...body })
+      assert.equal(started.status, 202, await started.clone().text())
+      const { id } = await started.json()
+      for (let attempt = 0; attempt < 600; attempt++) {
+        const jobs = await (await f.request('/archive-jobs')).json(), job = jobs.find(job => job.id === id)
+        if (job.status !== 'running') { assert.equal(job.status, 'completed', job.error); return }
+        await delay(100)
+      }
+      assert.fail('Remote archive operation timed out')
+    }
+    await runArchive({ operation: 'compress', paths: [directory + '/payload.bin'], name: 'stored.zip', format: 'zip' })
+    await runArchive({ operation: 'decompress', paths: [directory + '/stored.zip'], name: 'extracted' })
+    assert.deepEqual(Buffer.from(await (await f.request(fileApi + '/content?path=' + directory + '/extracted/payload.bin')).arrayBuffer()), bytes)
+    assert.equal((await f.request(fileApi + '?path=' + directory + '/extracted', undefined, 'DELETE')).status, 200)
+    assert.equal((await f.request(fileApi + '?path=' + directory + '/stored.zip', undefined, 'DELETE')).status, 200)
     assert.equal((await f.request(fileApi, { path: directory + '/payload.bin', name: 'renamed.bin' }, 'PATCH')).status, 200)
     assert.equal((await f.request(fileApi + '?path=' + directory + '/renamed.bin', undefined, 'DELETE')).status, 200)
     const empty = await init(f, 'empty.txt', Buffer.alloc(0), directory); assert.equal((await f.request(`/uploads/${empty.id}/complete`, {})).status, 200)

@@ -17,6 +17,7 @@ import { shortcutBlocked } from './lib/modalStack'
 import { NotifyContext } from './lib/notify'
 import { isRunning, STATE_LABELS, transferProgress } from './lib/transfers'
 import { targetAccess } from './lib/targets'
+import { useArchiveJobs } from './lib/archive-jobs'
 import { TargetsView } from './views/TargetsView'
 import { TargetListView } from './views/TargetListView'
 import { can } from './lib/permissions'
@@ -68,6 +69,7 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
   const [connections, setConnections] = usePref('connections', '1', CONNECTIONS)
   const [engine] = useState(() => new UploadEngine(bootstrap.upload))
   const [transfers, setTransfers] = useState<Transfer[]>([])
+  const { jobs: archiveJobs, cancel: cancelArchive } = useArchiveJobs()
   const [system, setSystem] = useState<SystemInfo | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [overlay, setOverlay] = useState<'upload' | 'palette' | 'shortcuts' | null>(null)
@@ -185,7 +187,7 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
         <nav className="nav" aria-label="Main">
           <div className="nav-caption">Workspace</div>
           {navItem('files', 'My files', IconFolders)}
-          {navItem('transfers', 'Transfers', IconArrowsTransferUp, { count: active.length, tone: attention ? 'is-warning' : running.length ? 'is-accent' : '' })}
+          {navItem('transfers', 'Transfers', IconArrowsTransferUp, { count: active.length + archiveJobs.filter(job => job.status === 'running').length, tone: attention ? 'is-warning' : running.length ? 'is-accent' : '' })}
           {admin ? <>
             <div className="nav-caption">Administration</div>
             {navItem('targets', 'Storage targets', IconServer)}
@@ -216,10 +218,10 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
         </div>
       </aside>
       <main className="main">
-        {view === 'files' && (access && target ? <FilesView key={target.id} targetName={target.name} path={route.path} user={access} transfers={transfers} density={density} onNavigate={path => go('files', path)} onTargets={goFiles}
+        {view === 'files' && (access && target ? <FilesView key={target.id} targetName={target.name} path={route.path} user={access} transfers={transfers} archiveJobs={archiveJobs} density={density} onNavigate={path => go('files', path)} onTargets={goFiles}
           onUpload={openUpload} onAddFiles={addFiles} onTransfers={() => go('transfers')} folderRequest={folderRequest} /> : <TargetListView targets={bootstrap.targets} admin={admin} unavailable={!!route.targetId}
           onOpen={id => navigate({ view: 'files', targetId: id, path: '/' })} onManage={() => go('targets')} onRefresh={onAuthChanged} />)}
-        {view === 'transfers' && <TransfersView targets={bootstrap.targets} access={access} transfers={transfers} engine={engine} user={user} connections={connections} onConnections={setConnections} onUpload={openUpload} />}
+        {view === 'transfers' && <TransfersView targets={bootstrap.targets} access={access} transfers={transfers} archiveJobs={archiveJobs} onCancelArchive={cancelArchive} engine={engine} user={user} connections={connections} onConnections={setConnections} onUpload={openUpload} />}
         {view === 'people' && <PeopleView currentUser={user} onAuthChanged={onAuthChanged} />}
         {view === 'targets' && <TargetsView onChanged={onAuthChanged} />}
         {view === 'activity' && <ActivityView targets={bootstrap.targets} />}

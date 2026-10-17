@@ -72,6 +72,9 @@ jobs:
               testparm --version
               test -s /etc/ssl/certs/ca-certificates.crt
               test -s /app/dist/server/samba-agent.js
+              test -x "$FB_7ZIP_PATH"
+              "$FB_7ZIP_PATH" i > /dev/null
+              test -s /opt/7zip/License.txt
               node --input-type=module -e "import { DatabaseSync } from \"node:sqlite\"; const db = new DatabaseSync(\":memory:\"); db.close();"
             '
             container_id=$(docker run -d --platform "$platform" "${IMAGE}@${platform_digest}")

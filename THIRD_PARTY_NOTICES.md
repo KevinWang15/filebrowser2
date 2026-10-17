@@ -21,6 +21,10 @@ The zxcvbn-ts English dictionary includes OpenSubtitles 2024 data from OPUS unde
 
 Backend dependencies keep their original notices alongside their installed files. Development tools are listed in `package-lock.json` and are excluded from the packaged application runtime.
 
+## Archive libraries and 7-Zip
+
+The backend uses tar-stream (MIT), yazl (MIT) and yauzl (MIT), with their original notices in the production dependency graph. Container images also include unmodified official 7-Zip 26.04 binaries, copyright Igor Pavlov, under the LGPL and the additional licenses specified in upstream `/opt/7zip/License.txt`. The complete upstream documentation and license files accompany the binaries. Corresponding source is available from the [7-Zip 26.04 release](https://github.com/ip7z/7zip/releases/tag/26.04). These binaries are separate programs and are not covered by the application's MIT license.
+
 ## Samba in container images
 
 The published runtime image and SMB companion targets include Samba and its dependencies from Debian packages. These system packages retain their upstream licenses and copyright files under `/usr/share/doc/`; they are not covered by Filebrowser2's MIT license. Corresponding Samba sources are available from [Debian's Samba source package](https://sources.debian.org/src/samba/). The application's SMB verifier uses hash-wasm, whose MIT license is included with the existing application notices and runtime dependency graph.

@@ -43,7 +43,7 @@ export class Store {
       chmodSync(join(directory, 'filebrowser.sqlite'), 0o600)
       const version = (this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version
       const populated = this.db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").get()
-      if ((version === 0 && populated) || (version !== 0 && version !== 2)) throw new Error('This database uses an unsupported schema')
+      if ((version === 0 && populated) || (version !== 0 && version !== 3)) throw new Error('This database uses an unsupported schema')
       this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;')
       if (version === 0) this.transaction(() => this.db.exec(`
       CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -74,6 +74,11 @@ export class Store {
       CREATE UNIQUE INDEX upload_target ON uploads(target_id,path)
         WHERE status IN ('uploading', 'publishing');
       CREATE INDEX uploads_user ON uploads(user_id);
+      CREATE TABLE archive_jobs (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), target_id TEXT NOT NULL REFERENCES targets(id),
+        scope TEXT NOT NULL, data TEXT NOT NULL
+      );
+      CREATE INDEX archive_jobs_user ON archive_jobs(user_id);
       CREATE TABLE audit (
         id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT NOT NULL, action TEXT NOT NULL,
         detail TEXT NOT NULL, target_id TEXT REFERENCES targets(id) ON DELETE SET NULL, created_at TEXT NOT NULL
@@ -93,7 +98,7 @@ export class Store {
         enabled INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL,
         FOREIGN KEY(protocol,user_id) REFERENCES network_share_accounts(protocol,user_id)
       );
-      PRAGMA user_version = 2;
+      PRAGMA user_version = 3;
       `))
       this.db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now())
     } catch (error) {
