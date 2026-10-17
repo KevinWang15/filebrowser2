@@ -65,10 +65,6 @@ for (const format of ARCHIVE_FORMATS) test(`${format}: Compress and Decompress r
   await extract.getByLabel('Destination folder name', { exact: true }).fill('restored')
   await extract.getByRole('button', { name: 'Decompress', exact: true }).click()
   await expect(targetJobs.filter({ hasText: '/restored' })).toContainText('Complete')
-  await operations.getByLabel('Recent operations', { exact: true }).selectOption({ label: `Compress · ${target.name} · /${name}` })
-  await expect(compressed).toContainText('Complete')
-  await operations.getByLabel('Recent operations', { exact: true }).selectOption({ label: `Decompress · ${target.name} · /restored` })
-  await expect(targetJobs.filter({ hasText: '/restored' })).toContainText('Complete')
   for (const path of ['folder/文件.txt', 'folder/.hidden', 'folder/@literal[1]*?.txt', 'folder/子目录/binary.bin', 'extra.txt', 'zero']) {
     expect(await readFile(join(root, 'restored', path))).toEqual(await readFile(join(root, path)))
   }

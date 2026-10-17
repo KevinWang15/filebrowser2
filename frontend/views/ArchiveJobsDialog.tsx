@@ -12,19 +12,13 @@ export function ArchiveJobsDialog({ jobs, targets, onCancel, onClose }: {
   jobs: ArchiveJob[]; targets: Target[]; onCancel: (id: string) => Promise<void>; onClose: () => void
 }) {
   const notify = useNotify(), [canceling, setCanceling] = useState<string | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
-  const job = jobs.find(job => job.id === selected) ?? jobs[0]
-  const running = jobs.filter(job => job.status === 'running').length
+  const job = jobs[0]
+  const running = job.status === 'running'
   const tone = job.status === 'failed' ? 'danger' : job.status === 'completed' ? 'success' : job.status === 'canceled' ? 'muted' : 'accent'
   const StatusIcon = job.status === 'completed' ? IconCircleCheckFilled : job.status === 'failed' ? IconAlertTriangle : job.status === 'canceled' ? IconCircleX : IconLoader2
-  return <Modal title="Compress & Decompress" description={running ? `${plural(running, 'operation')} in progress` : 'Recent archive operations'} icon={<IconFileZip size={17} />} size="md" onClose={onClose}>
+  return <Modal title="Compress & Decompress" icon={<IconFileZip size={17} />} size="md" onClose={onClose}>
     <div className="modal-body archive-progress-body">
-      {running > 0 && <p className="dialog-note">You can close this window and keep browsing. Reopen it from Archive operations in My files.</p>}
-      {jobs.length > 1 && <div className="field"><label htmlFor="archive-operation">Recent operations</label>
-        <select id="archive-operation" className="input" value={job.id} onChange={event => setSelected(event.target.value)}>
-          {jobs.map(job => <option key={job.id} value={job.id}>{job.operation === 'compress' ? 'Compress' : 'Decompress'} · {targets.find(target => target.id === job.targetId)?.name ?? 'Unavailable target'} · {job.destination}</option>)}
-        </select>
-      </div>}
+      {running && <p className="dialog-note">You can close this window and keep browsing. Reopen it from Archive operations in My files.</p>}
       <article className="archive-job" aria-label={`${job.operation === 'compress' ? 'Compress' : 'Decompress'} ${job.destination}`}>
           <div className="archive-job-heading"><strong>{job.operation === 'compress' ? 'Compress' : 'Decompress'}</strong>
             <span className={`status tone-${tone}`}><StatusIcon size={14} className={job.status === 'running' ? 'spin' : undefined} aria-hidden="true" />{archivePhase(job)}</span>
