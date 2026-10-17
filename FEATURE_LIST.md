@@ -177,6 +177,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 
 - Dedicated Compress and Decompress actions, independent of streamed downloads, for TAR.GZ/TGZ, TAR, ZIP and 7z.
 - Stored archives and extraction into new folders across storage adapters, with persisted job history, phase/byte/file progress, cancellation, path reservations and publication through verified chunks.
+- Dedicated archive progress modal that reopens from My files or the command palette and survives reloads; Transfers remains dedicated to uploads.
 - Bounded expanded sizes and entry counts, validated paths, link/special-file rejection and ZIP CRC32 checks. See [archive operations](docs/archive-operations.md) for limits and native 7-Zip requirements.
 
 - Authenticated native browser file downloads with attachment disposition and UTF-8 filenames.

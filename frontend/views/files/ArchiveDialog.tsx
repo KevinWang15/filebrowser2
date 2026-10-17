@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { IconFileZip } from '@tabler/icons-react'
-import { ARCHIVE_FORMATS, type ArchiveFormat, type FileEntry } from '@/shared/types'
+import { ARCHIVE_FORMATS, type ArchiveFormat, type ArchiveJob, type FileEntry } from '@/shared/types'
 import { archiveStem } from '@/shared/archive-rules'
 import { isValidFileName, MAX_NAME_BYTES } from '@/shared/file-rules'
 import { api, errorMessage } from '../../api'
@@ -9,7 +9,7 @@ import { Spinner } from '../../components/ui'
 import { plural } from '../../lib/format'
 
 export function ArchiveDialog({ targetId, operation, entries, directory, onClose, onStarted }: {
-  targetId: string; operation: 'compress' | 'decompress'; entries: FileEntry[]; directory: string; onClose: () => void; onStarted: () => void
+  targetId: string; operation: 'compress' | 'decompress'; entries: FileEntry[]; directory: string; onClose: () => void; onStarted: (job: ArchiveJob) => void
 }) {
   const compress = operation === 'compress'
   const [format, setFormat] = useState<ArchiveFormat>('zip')
@@ -22,9 +22,8 @@ export function ArchiveDialog({ targetId, operation, entries, directory, onClose
     if (!valid || busy) return
     setBusy(true); setError('')
     try {
-      await api(`/targets/${targetId}/archive-jobs`, { method: 'POST', body: { operation, paths: entries.map(entry => entry.path), directory, name: trimmed, ...(compress ? { format } : {}) } })
-      window.dispatchEvent(new Event('fb-archive-jobs-changed'))
-      onStarted()
+      const job = await api<ArchiveJob>(`/targets/${targetId}/archive-jobs`, { method: 'POST', body: { operation, paths: entries.map(entry => entry.path), directory, name: trimmed, ...(compress ? { format } : {}) } })
+      onStarted(job)
     } catch (error) { setError(errorMessage(error)); setBusy(false) }
   }
   return <Modal title={compress ? 'Compress' : 'Decompress'} icon={<IconFileZip size={17} />} onClose={() => !busy && onClose()}
@@ -42,7 +41,7 @@ export function ArchiveDialog({ targetId, operation, entries, directory, onClose
           <input id="archive-name" className="input" data-autofocus required maxLength={MAX_NAME_BYTES} value={name} spellCheck={false} onChange={event => setName(event.target.value)} aria-invalid={!!trimmed && !valid} />
           {!!trimmed && !valid && <span className="field-error">{!isValidFileName(trimmed) ? 'Choose a valid file name without slashes.' : `Use the .${format} extension.`}</span>}
         </div>
-        <p className="dialog-note">{compress ? 'The archive will be saved in' : 'A new folder will be created in'} <span className="mono">{directory}</span>. Existing names are kept. Progress appears in Transfers, and the operation continues if you leave this page.</p>
+        <p className="dialog-note">{compress ? 'The archive will be saved in' : 'A new folder will be created in'} <span className="mono">{directory}</span>. Existing names are kept. A progress window will open when the operation starts.</p>
         {error && <p className="form-error" role="alert">{error}</p>}
       </div>
       <footer className="modal-footer">

@@ -32,9 +32,10 @@ const HEADER_HEIGHT = 30
 
 const join = (directory: string, name: string) => (directory === '/' ? '' : directory) + '/' + name
 
-export function FilesView({ targetName, path, user, transfers, archiveJobs, density, folderRequest, onNavigate, onTargets, onUpload, onAddFiles, onTransfers }: {
+export function FilesView({ targetName, path, user, transfers, archiveJobs, density, folderRequest, onNavigate, onTargets, onUpload, onAddFiles, onTransfers, onArchiveStarted, onArchiveProgress }: {
   targetName: string; path: string; user: TargetAccess; transfers: Transfer[]; archiveJobs: ArchiveJob[]; density: 'compact' | 'comfortable'; folderRequest: number
   onNavigate: (path: string) => void; onTargets: () => void; onUpload: () => void; onAddFiles: (files: UploadSource[], directory: string) => void; onTransfers: () => void
+  onArchiveStarted: (job: ArchiveJob) => void; onArchiveProgress: () => void
 }) {
   const notify = useNotify()
   const [listing, setListing] = useState<Listing>({ path: '', entries: [], error: '' })
@@ -296,6 +297,7 @@ export function FilesView({ targetName, path, user, transfers, archiveJobs, dens
       </nav>
       <div className="page-actions">
         <SearchField value={search} onChange={setSearch} label="Search files" placeholder="Filter this folder" inputRef={searchRef} shortcut="/" />
+        {archiveJobs.length > 0 && <button type="button" className="btn" aria-label="Archive operations" onClick={onArchiveProgress}><IconFileZip size={15} /><span className="btn-label">Archive operations</span></button>}
         {can(user, 'create') && <button type="button" className="btn" onClick={() => setDialog({ kind: 'folder' })}><IconFolderPlus size={15} /><span className="btn-label">New folder</span></button>}
         {can(user, 'upload') && <button type="button" className="btn btn-primary" onClick={onUpload}><IconUpload size={15} /><span className="btn-label">Upload files</span></button>}
       </div>
@@ -361,9 +363,8 @@ export function FilesView({ targetName, path, user, transfers, archiveJobs, dens
     </div>
 
     {menu && <Menu {...menu} onClose={() => setMenu(null)} />}
-    {(dialog?.kind === 'compress' || dialog?.kind === 'decompress') && <ArchiveDialog targetId={user.targetId} operation={dialog.kind} entries={dialog.entries} directory={path} onClose={() => setDialog(null)} onStarted={() => {
-      const operation = dialog.kind === 'compress' ? 'Compress' : 'Decompress'
-      setDialog(null); notify(operation + ' started. View progress in Transfers.'); onTransfers()
+    {(dialog?.kind === 'compress' || dialog?.kind === 'decompress') && <ArchiveDialog targetId={user.targetId} operation={dialog.kind} entries={dialog.entries} directory={path} onClose={() => setDialog(null)} onStarted={job => {
+      setDialog(null); onArchiveStarted(job)
     }} />}
     {viewEntry && !dialog && <FileViewer entry={viewEntry} siblings={files} user={user} onClose={() => setViewing(null)} onStep={entry => { setViewing(entry.path); select(entry.uploading ? [] : [entry.path], entry.path) }}
       onDownload={() => downloadItems([viewEntry])} onRename={() => rename(viewEntry)} onDelete={() => remove([viewEntry])} onCopyPath={() => copyPath(viewEntry.path)} onTransfers={onTransfers} />}

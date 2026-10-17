@@ -3,7 +3,7 @@ import {
   IconAlertTriangle, IconArrowsTransferUp, IconCircleCheckFilled, IconClock, IconFileSearch, IconFolder, IconLoader2, IconPlayerPause,
   IconPlayerPauseFilled, IconPlayerPlay, IconPlus, IconRefreshAlert, IconTrash, IconX,
 } from '@tabler/icons-react'
-import type { ArchiveJob, User, Target, TargetAccess } from '@/shared/types'
+import type { User, Target, TargetAccess } from '@/shared/types'
 import { errorMessage } from '../api'
 import { FileIcon } from '../components/FileIcon'
 import { Modal } from '../components/Modal'
@@ -13,7 +13,6 @@ import { useNotify } from '../lib/notify'
 import { can } from '../lib/permissions'
 import { isRunning, STATE_LABELS, transferProgress } from '../lib/transfers'
 import type { Transfer, TransferState, UploadEngine } from '../upload-engine'
-import { ArchiveJobsPanel } from './ArchiveJobsPanel'
 
 function StateIcon({ state }: { state: TransferState }) {
   if (state === 'completed') return <IconCircleCheckFilled size={14} />
@@ -69,9 +68,8 @@ function TransferRow({ task, targetName, readOnly, onPause, onResume, onCancel }
   </tr>
 }
 
-export function TransfersView({ targets, access, transfers, archiveJobs, onCancelArchive, engine, user, connections, onConnections, onUpload }: {
+export function TransfersView({ targets, access, transfers, engine, user, connections, onConnections, onUpload }: {
   targets: Target[]; access: TargetAccess | null; transfers: Transfer[]; engine: UploadEngine; user: User; connections: '1' | '2' | '4'; onConnections: (value: '1' | '2' | '4') => void; onUpload: () => void
-  archiveJobs: ArchiveJob[]; onCancelArchive: (id: string) => Promise<void>
 }) {
   const notify = useNotify()
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
@@ -99,13 +97,11 @@ export function TransfersView({ targets, access, transfers, archiveJobs, onCance
   return <div className="page">
     <header className="page-header">
       <div className="page-heading"><h1 className="page-title"><IconArrowsTransferUp size={18} className="title-icon" />Transfers</h1>
-        <span className="page-sub">Uploads and archive operations</span></div>
+        <span className="page-sub">Resumable, chunk-verified uploads</span></div>
       <div className="page-actions">
         {(can(access, 'upload')) && <button type="button" className="btn btn-primary" onClick={onUpload}><IconPlus size={15} /><span className="btn-label">New upload</span></button>}
       </div>
     </header>
-    <ArchiveJobsPanel jobs={archiveJobs} targets={targets} onCancel={onCancelArchive} />
-    {archiveJobs.length > 0 && <h2 className="uploads-heading">Uploads</h2>}
     {access?.storageReadOnly && <p className="page-foot dim">Storage is read-only. Saved uploads can resume when write access is enabled.</p>}
     <div className="stat-strip">
       <div><span>Active</span><strong className="mono">{active.length}</strong></div>

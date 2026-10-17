@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ArchiveJob } from '@/shared/types'
 import { api } from '../api'
 
@@ -8,6 +8,11 @@ export const archivePhase = (job: ArchiveJob) => job.status === 'completed' ? 'C
 
 export function useArchiveJobs() {
   const [jobs, setJobs] = useState<ArchiveJob[]>([])
+  const revision = useRef(0)
+  const track = useCallback((job: ArchiveJob) => {
+    revision.current++
+    setJobs(previous => [job, ...previous.filter(item => item.id !== job.id)])
+  }, [])
   useEffect(() => {
     let disposed = false, pending = false, timer: ReturnType<typeof setTimeout>
     const controller = new AbortController()
@@ -15,18 +20,18 @@ export function useArchiveJobs() {
       clearTimeout(timer)
       if (pending || disposed) return
       pending = true
-      void api<ArchiveJob[]>('/archive-jobs', { signal: controller.signal }).then(jobs => { if (!disposed) setJobs(jobs) }).catch(() => {}).finally(() => {
+      const startedAt = revision.current
+      void api<ArchiveJob[]>('/archive-jobs', { signal: controller.signal }).then(jobs => { if (!disposed && startedAt === revision.current) setJobs(jobs) }).catch(() => {}).finally(() => {
         pending = false
         if (!disposed) timer = setTimeout(refresh, 1000)
       })
     }
     refresh()
-    window.addEventListener('fb-archive-jobs-changed', refresh)
-    return () => { disposed = true; controller.abort(); clearTimeout(timer); window.removeEventListener('fb-archive-jobs-changed', refresh) }
+    return () => { disposed = true; controller.abort(); clearTimeout(timer) }
   }, [])
   const cancel = useCallback(async (id: string) => {
     const job = await api<ArchiveJob>(`/archive-jobs/${id}/cancel`, { method: 'POST' })
-    setJobs(previous => previous.map(item => item.id === id ? job : item))
-  }, [])
-  return { jobs, cancel }
+    track(job)
+  }, [track])
+  return { jobs, cancel, track }
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import {
   IconActivity, IconAlertTriangle, IconArrowsTransferUp, IconCommand, IconDeviceDesktop, IconFolderPlus, IconFolders, IconKeyboard, IconLayoutRows,
-  IconLogout, IconMoon, IconRefresh, IconServer, IconSettings, IconSun, IconUpload, IconUsers, type Icon,
+  IconFileZip, IconLogout, IconMoon, IconRefresh, IconServer, IconSettings, IconSun, IconUpload, IconUsers, type Icon,
 } from '@tabler/icons-react'
 import type { Bootstrap, SystemInfo, UploadSession, User } from '@/shared/types'
 import { VERSION } from '@/shared/version'
@@ -31,6 +31,7 @@ import { PeopleView } from './views/PeopleView'
 import { SettingsView } from './views/SettingsView'
 import { TransfersView } from './views/TransfersView'
 import { UploadDialog } from './views/UploadDialog'
+import { ArchiveJobsDialog } from './views/ArchiveJobsDialog'
 
 const CONNECTIONS = ['1', '2', '4'] as const
 
@@ -69,7 +70,8 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
   const [connections, setConnections] = usePref('connections', '1', CONNECTIONS)
   const [engine] = useState(() => new UploadEngine(bootstrap.upload))
   const [transfers, setTransfers] = useState<Transfer[]>([])
-  const { jobs: archiveJobs, cancel: cancelArchive } = useArchiveJobs()
+  const { jobs: archiveJobs, cancel: cancelArchive, track: trackArchive } = useArchiveJobs()
+  const [archiveWindow, setArchiveWindow] = usePref('archive-window-' + user.id, 'closed', ['open', 'closed'] as const)
   const [system, setSystem] = useState<SystemInfo | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [overlay, setOverlay] = useState<'upload' | 'palette' | 'shortcuts' | null>(null)
@@ -161,6 +163,7 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
     { id: 'settings', group: 'Go to', label: admin ? 'Settings' : 'Account settings', icon: IconSettings, shortcut: 'G S', run: () => go('settings') },
     ...(can(access, 'upload') ? [{ id: 'upload', group: 'Actions', label: 'Upload files', icon: IconUpload, keywords: 'add', run: openUpload }] : []),
     ...(can(access, 'create') ? [{ id: 'folder', group: 'Actions', label: 'New folder…', icon: IconFolderPlus, keywords: 'create mkdir', run: () => { go('files', folder); setFolderRequest(value => value + 1) } }] : []),
+    ...(archiveJobs.length ? [{ id: 'archives', group: 'Actions', label: 'Archive operations', icon: IconFileZip, keywords: 'compress decompress progress', run: () => setArchiveWindow('open') }] : []),
     { id: 'theme-light', group: 'Preferences', label: 'Use light theme', icon: IconSun, keywords: 'appearance', run: () => setTheme('light') },
     { id: 'theme-dark', group: 'Preferences', label: 'Use dark theme', icon: IconMoon, keywords: 'appearance', run: () => setTheme('dark') },
     { id: 'theme-system', group: 'Preferences', label: 'Use system theme', icon: IconDeviceDesktop, keywords: 'appearance', run: () => setTheme('system') },
@@ -187,7 +190,7 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
         <nav className="nav" aria-label="Main">
           <div className="nav-caption">Workspace</div>
           {navItem('files', 'My files', IconFolders)}
-          {navItem('transfers', 'Transfers', IconArrowsTransferUp, { count: active.length + archiveJobs.filter(job => job.status === 'running').length, tone: attention ? 'is-warning' : running.length ? 'is-accent' : '' })}
+          {navItem('transfers', 'Transfers', IconArrowsTransferUp, { count: active.length, tone: attention ? 'is-warning' : running.length ? 'is-accent' : '' })}
           {admin ? <>
             <div className="nav-caption">Administration</div>
             {navItem('targets', 'Storage targets', IconServer)}
@@ -219,9 +222,10 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
       </aside>
       <main className="main">
         {view === 'files' && (access && target ? <FilesView key={target.id} targetName={target.name} path={route.path} user={access} transfers={transfers} archiveJobs={archiveJobs} density={density} onNavigate={path => go('files', path)} onTargets={goFiles}
-          onUpload={openUpload} onAddFiles={addFiles} onTransfers={() => go('transfers')} folderRequest={folderRequest} /> : <TargetListView targets={bootstrap.targets} admin={admin} unavailable={!!route.targetId}
+          onUpload={openUpload} onAddFiles={addFiles} onTransfers={() => go('transfers')} folderRequest={folderRequest}
+          onArchiveProgress={() => setArchiveWindow('open')} onArchiveStarted={job => { trackArchive(job); setArchiveWindow('open') }} /> : <TargetListView targets={bootstrap.targets} admin={admin} unavailable={!!route.targetId}
           onOpen={id => navigate({ view: 'files', targetId: id, path: '/' })} onManage={() => go('targets')} onRefresh={onAuthChanged} />)}
-        {view === 'transfers' && <TransfersView targets={bootstrap.targets} access={access} transfers={transfers} archiveJobs={archiveJobs} onCancelArchive={cancelArchive} engine={engine} user={user} connections={connections} onConnections={setConnections} onUpload={openUpload} />}
+        {view === 'transfers' && <TransfersView targets={bootstrap.targets} access={access} transfers={transfers} engine={engine} user={user} connections={connections} onConnections={setConnections} onUpload={openUpload} />}
         {view === 'people' && <PeopleView currentUser={user} onAuthChanged={onAuthChanged} />}
         {view === 'targets' && <TargetsView onChanged={onAuthChanged} />}
         {view === 'activity' && <ActivityView targets={bootstrap.targets} />}
@@ -237,6 +241,7 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
           <span className="status-item mono dim hide-sm">v{system?.version ?? VERSION}</span>
         </footer>
       </main>
+      {archiveWindow === 'open' && archiveJobs.length > 0 && <ArchiveJobsDialog jobs={archiveJobs} targets={bootstrap.targets} onCancel={cancelArchive} onClose={() => setArchiveWindow('closed')} />}
       {overlay === 'upload' && target && access && can(access, 'upload') && <UploadDialog targetName={target.name} directory={folder} allowFolders={can(access, 'create')}
         limits={{ ...bootstrap.upload, maxFileSize: Math.min(bootstrap.upload.maxFileSize, target.capabilities.maxChunks * bootstrap.upload.chunkSize) }} connections={connections} onConnections={setConnections}
         onFiles={files => addFiles(files, folder, true)} onClose={() => setOverlay(null)} />}
