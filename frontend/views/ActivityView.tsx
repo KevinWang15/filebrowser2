@@ -11,12 +11,13 @@ const LABELS: Record<string, string> = {
   'setup.completed': 'created the workspace', 'auth.login': 'signed in', 'auth.password_changed': 'changed their password',
   'upload.started': 'started an upload', 'upload.completed': 'finished an upload', 'upload.canceled': 'canceled an upload',
   'file.mkdir': 'created a folder', 'file.rename': 'renamed an item', 'file.delete': 'deleted an item',
+  'archive.compress': 'compressed files', 'archive.decompress': 'decompressed an archive',
   'target.created': 'added a storage target', 'target.updated': 'updated a storage target', 'target.deleted': 'removed a storage target',
   'user.created': 'added a person', 'user.updated': 'updated access', 'settings.updated': 'updated workspace settings',
 }
 type Category = 'all' | 'file' | 'upload' | 'auth' | 'admin'
 const category = (action: string): Exclude<Category, 'all'> =>
-  action.startsWith('file') ? 'file' : action.startsWith('upload') ? 'upload' : action.startsWith('auth') ? 'auth' : 'admin'
+  action.startsWith('file.') || action.startsWith('archive.') ? 'file' : action.startsWith('upload.') ? 'upload' : action.startsWith('auth.') ? 'auth' : 'admin'
 const ICONS: Record<Exclude<Category, 'all'>, Icon> = { file: IconFolder, upload: IconUpload, auth: IconLock, admin: IconSettings }
 
 export function ActivityView({ targets }: { targets: Target[] }) {

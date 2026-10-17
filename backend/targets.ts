@@ -184,7 +184,7 @@ export class Targets {
   async remove(id: string) {
     this.row(id)
     if (this.store.db.prepare('SELECT id FROM uploads WHERE target_id=? LIMIT 1').get(id) || this.store.db.prepare('SELECT id FROM operations WHERE target_id=? LIMIT 1').get(id) || this.store.db.prepare('SELECT id FROM network_shares WHERE target_id=? LIMIT 1').get(id)) {
-      throw new HttpError(409, 'This target has transfer or operation history, or protocol shares. Disable it to retain those records.')
+      throw new HttpError(409, 'This target has transfer history, uncleared operations or protocol shares. Disable it to retain those records.')
     }
     this.store.db.prepare('DELETE FROM targets WHERE id=?').run(id)
     this.accessChanged()

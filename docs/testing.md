@@ -6,18 +6,22 @@ Checks create disposable file/state directories. Do not point them at real accou
 
 ```sh
 npm ci
+node scripts/install-7zip.mjs .filebrowser-tools/7zip
+export FB_7ZIP_PATH="$PWD/.filebrowser-tools/7zip/7zz"
 npm run check
 npx playwright install chromium
 npm run test:e2e
 ```
 
-`npm run check` runs lint, type checks, frontend/backend builds and Node tests. CI supplies a mounted-filesystem fixture, then installs Chromium and runs the browser workflow. No database service or generated ORM client is needed. An existing Chromium can be selected with `FB_CHROMIUM_PATH`.
+`npm run check` runs lint, type checks, frontend/backend builds and Node tests. The pinned 7-Zip installer requires Linux, `tar` and `xz`; alternatively point `FB_7ZIP_PATH` at an installed current 7-Zip executable. Native 7z backend tests are skipped when it is unavailable, while the complete archive browser suite requires it. CI explicitly installs the engine, supplies a mounted-filesystem fixture, then installs Chromium and runs the browser workflow. No database service or generated ORM client is needed. An existing Chromium can be selected with `FB_CHROMIUM_PATH`.
 
 The containerized browser runner uses the installed `C.UTF-8` locale. An unavailable locale can make Chromium report files under Unicode directories as unreadable, zero-byte sources. Folder-picker checks validate the browser's native relative paths and sizes before verifying uploaded bytes. The hash worker also reads apparently empty sources so unreadable files fail rather than silently publishing an empty upload; genuine empty files remain supported.
 
 Backend tests cover permissions, first-run setup, authenticated file operations, actual 100 MiB streaming, corrupt/incomplete chunks, interrupted connections, duplicate commits, missing data, publication conflicts, cancellation, and SIGKILL recovery at durable transitions. The browser workflow uploads 101 MiB, interrupts the second chunk, reloads, verifies the source manifest, and completes with matching bytes.
 
-Archive checks cover binary and Unicode contents, empty directories, deduplicated mixed selections, private-state and unfinished-upload exclusion, scopes, permission changes, expiring single-use links, limits, backpressure and client disconnects. Read-only checks cover administrator write rejection, state isolation and retention of interrupted uploads for a later writable restart. Browser checks download real TAR files and exercise Ctrl/Command+Up navigation.
+Streamed TAR download checks cover binary and Unicode contents, empty directories, deduplicated mixed selections, ordinary dot directories, managed unfinished-upload exclusion, scopes, permission changes, expiring single-use links, limits, backpressure and client disconnects. Read-only checks cover administrator write rejection, state isolation and retention of interrupted uploads for a later writable restart. Browser checks download real TAR files and exercise Ctrl/Command+Up navigation.
+
+Operations checks cover generic handlers, ownership, concurrency, path reservations, validation and execution deadlines, access revocation, shutdown/restart, scratch cleanup, cancellation and clearing without deleting output. Codec regressions run progress-callback failures in disposable child processes to verify that ZIP and 7z failures reject their operation without terminating the server. Browser checks cover all four stored archive formats, live cancellation, restored progress, cross-page entry points, Activity categorization, stale polls, stalled requests, disconnect/reconnect, and clearing the last task.
 
 ## Mounted filesystems
 

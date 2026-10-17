@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -94,5 +94,49 @@ test('rejected validation releases its slot and account revocation interrupts an
   const operation = await f.manager.start(f.users.first, 'test.wait', {})
   f.store.db.prepare('UPDATE users SET disabled=1 WHERE id=?').run(f.users.first.id)
   assert.match((await f.wait(operation.id)).error, /revoked/)
+  assert.deepEqual(await readdir(join(f.root, 'operations-work')), [])
+})
+
+test('validation observes the operation deadline', async t => {
+  const f = await fixture(t)
+  f.handlers['test.slow-validation'] = () => ({ ...f.plan(async () => assert.fail('Expired validation must not execute')),
+    timeoutMs: 30, async validate(context) {
+      await delay(1000, undefined, { signal: context.signal })
+    } })
+  await assert.rejects(f.manager.start(f.users.first, 'test.slow-validation', {}), /time limit/)
+  assert.deepEqual(f.manager.list(f.users.first), [])
+  assert.deepEqual(await readdir(join(f.root, 'operations-work')), [])
+})
+
+test('rejected validation removes its private scratch and releases the operation slot', async t => {
+  const f = await fixture(t)
+  f.handlers['test.invalid-scratch'] = () => ({ ...f.plan(async () => assert.fail('Invalid work must not execute')),
+    async validate(context) {
+      await mkdir(context.directory, { recursive: true, mode: 0o700 })
+      await writeFile(join(context.directory, 'validation-scratch'), 'temporary')
+      throw new Error('Invalid input')
+    } })
+  await assert.rejects(f.manager.start(f.users.first, 'test.invalid-scratch', {}), /Invalid input/)
+  assert.deepEqual(f.manager.list(f.users.first), [])
+  assert.deepEqual(await readdir(join(f.root, 'operations-work')), [])
+  f.handlers['test.next'] = () => f.plan(async () => {})
+  assert.equal((await f.wait((await f.manager.start(f.users.first, 'test.next', {})).id)).status, 'completed')
+})
+
+test('access revocation and shutdown interrupt validation before work can execute', async t => {
+  const f = await fixture(t)
+  let ready
+  f.handlers['test.validation'] = () => ({ ...f.plan(async () => assert.fail('Interrupted validation must not execute')),
+    async validate(context) { ready(); await delay(60000, undefined, { signal: context.signal }) } })
+  const validating = new Promise(resolve => { ready = resolve })
+  const revoked = assert.rejects(f.manager.start(f.users.first, 'test.validation', {}), /revoked/)
+  await validating
+  f.store.db.prepare('UPDATE users SET disabled=1 WHERE id=?').run(f.users.first.id)
+  await revoked
+  const nextValidating = new Promise(resolve => { ready = resolve })
+  const stopped = assert.rejects(f.manager.start(f.users.second, 'test.validation', {}), /Server stopped/)
+  await nextValidating
+  await f.manager.close(); await stopped
+  assert.deepEqual(f.manager.list(f.users.second), [])
   assert.deepEqual(await readdir(join(f.root, 'operations-work')), [])
 })

@@ -22,6 +22,7 @@ export interface ArchiveWork {
   total: (bytes: number, files: number) => void
   nativeProgress: (percent: number) => void
 }
+const streamError = (error: unknown) => error instanceof Error ? error : new Error('Archive operation stopped', { cause: error })
 
 export function meter(work: ArchiveWork, name: string, expected?: number, checksum?: number) {
   let bytes = 0, crc = 0
@@ -33,7 +34,7 @@ export function meter(work: ArchiveWork, name: string, expected?: number, checks
         if (checksum !== undefined) crc = crc32(chunk, crc)
         work.tick(name, chunk.length)
         callback(null, chunk)
-      } catch (error) { callback(error as Error) }
+      } catch (error) { callback(streamError(error)) }
     },
     flush(callback) {
       if (expected !== undefined && bytes !== expected) return callback(new Error('Archive entry size changed or is invalid'))
@@ -109,7 +110,7 @@ export async function packArchive(format: ArchiveFormat, entries: PackMember[], 
             zipOutput.once('close', stop)
             source.on('error', error => counted.destroy(error))
             counted.once('close', () => { zipOutput.removeListener('close', stop); source.destroy() })
-            counted.once('end', () => work.tick(entry.name, 0, 1))
+            counted.once('end', () => { try { work.tick(entry.name, 0, 1) } catch (error) { zipOutput.destroy(streamError(error)) } })
             callback(null, source.pipe(counted))
           }).catch(error => zipOutput.destroy(error))
         })
@@ -134,7 +135,7 @@ export async function packArchive(format: ArchiveFormat, entries: PackMember[], 
       if (entry.kind === 'file') work.tick(entry.name, 0, 1)
     }
     tar.finalize(); await writing
-  } catch (error) { tar.destroy(error as Error); await writing.catch(() => {}); throw error }
+  } catch (error) { tar.destroy(streamError(error)); await writing.catch(() => {}); throw error }
 }
 
 function meterOutput(work: ArchiveWork) {
@@ -144,7 +145,7 @@ function meterOutput(work: ArchiveWork) {
       work.check(); bytes += chunk.length
       if (bytes > work.maxBytes) throw new HttpError(413, 'Compressed archive exceeds the size limit')
       callback(null, chunk)
-    } catch (error) { callback(error as Error) }
+    } catch (error) { callback(streamError(error)) }
   } })
 }
 
@@ -226,7 +227,7 @@ export async function unpackArchive(format: ArchiveFormat, source: string, outpu
       }
       await reading
       members.total()
-    } catch (error) { tar.destroy(error as Error); await reading.catch(() => {}); throw error }
+    } catch (error) { tar.destroy(streamError(error)); await reading.catch(() => {}); throw error }
   }
   return [...members.entries.values()]
 }
@@ -236,13 +237,14 @@ async function seven(args: string[], work: ArchiveWork, cwd?: string, output?: {
   const child = spawn(process.env.FB_7ZIP_PATH || '7zz', [...args.slice(0, 1), '-bsp2', '-y', ...(args[0] === 'a' ? [] : ['-p-']), ...args.slice(1)], {
     cwd, stdio: ['ignore', 'pipe', 'pipe'], signal: work.signal, killSignal: 'SIGKILL', env: { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8' },
   })
-  let result = '', overflow = false
+  let result = '', overflow = false, progressError: Error | undefined
   child.stderr.on('data', (chunk: Buffer) => {
-    for (const match of chunk.toString().matchAll(/(\d{1,3})%/g)) work.nativeProgress(Number(match[1]))
+    try { for (const match of chunk.toString().matchAll(/(\d{1,3})%/g)) work.nativeProgress(Number(match[1])) }
+    catch (error) { progressError = streamError(error); child.kill('SIGKILL') }
   })
   const closed = new Promise<void>((resolve, reject) => {
     child.once('error', error => reject('code' in error && error.code === 'ENOENT' ? new HttpError(503, '7-Zip is unavailable. Install current 7-Zip and set FB_7ZIP_PATH.') : error))
-    child.once('close', code => code === 0 && !overflow ? resolve() : reject(new Error(overflow ? 'Archive listing exceeds the metadata limit' : '7-Zip could not process this archive. It may be damaged, encrypted or unsupported.')))
+    child.once('close', code => progressError ? reject(progressError) : code === 0 && !overflow ? resolve() : reject(new Error(overflow ? 'Archive listing exceeds the metadata limit' : '7-Zip could not process this archive. It may be damaged, encrypted or unsupported.')))
   })
   void closed.catch(() => {})
   const writing = output ? pipeline(child.stdout, meter(work, output.member.name, output.member.size), createWriteStream(output.path, { flags: 'wx', mode: 0o600 }), { signal: work.signal }) : undefined

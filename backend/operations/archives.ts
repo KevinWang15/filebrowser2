@@ -59,14 +59,17 @@ export class ArchiveOperations {
       validate: async context => {
         const storage = await this.targets.backend(targetId); context.check()
         if ((await storage.stat(scopedPath(access, input.directory))).kind !== 'directory') throw new HttpError(400, 'Choose a destination directory')
+        context.check()
         try { await storage.stat(storedDestination); throw new HttpError(409, 'The destination already exists. Choose a new name.', 'DESTINATION_EXISTS') }
         catch (error) { if (!isFsError(error, 'ENOENT') && !(error instanceof HttpError && error.statusCode === 404)) throw error }
         if (operation === 'compress') {
+          context.check()
           const pending = uploadingPath(storedDestination); this.protectDestination(targetId, pending)
           try { await storage.stat(pending); throw new HttpError(409, 'The staging name already exists. Choose a new archive name.', 'DESTINATION_EXISTS') }
           catch (error) { if (!isFsError(error, 'ENOENT') && !(error instanceof HttpError && error.statusCode === 404)) throw error }
         }
         for (const path of storedPaths) {
+          context.check()
           const entry = await storage.stat(path)
           if (operation === 'decompress' && entry.kind !== 'file') throw new HttpError(400, 'Choose an archive file')
         }
@@ -143,7 +146,7 @@ export class ArchiveOperations {
   }
   private async scan(task: ArchiveTask, context: OperationContext): Promise<PackMember[]> {
     const storage = await this.targets.backend(task.targetId), selections: { path: string; entry: FileEntry }[] = []
-    for (const path of task.paths) selections.push({ path, entry: await storage.stat(scopedPath(task.access, path)) })
+    for (const path of task.paths) { context.check(); selections.push({ path, entry: await storage.stat(scopedPath(task.access, path)) }) }
     const roots = selections.filter(selection => !selections.some(parent => parent !== selection && parent.entry.kind === 'directory' && pathsOverlap(parent.path, selection.path) && parent.path.length < selection.path.length))
     let base = posix.dirname(roots[0].path)
     while (roots.some(root => root.path !== base && !root.path.startsWith(base === '/' ? '/' : base + '/'))) base = posix.dirname(base)

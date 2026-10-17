@@ -5,6 +5,7 @@
 Planned initial release (`0.1.0`).
 
 - First-class Operations with registered use cases, a counted workspace button, persistent progress, cancellation, and clearing finished tasks without deleting their output.
+- Operation validation shares execution deadlines, access checks and scratch cleanup; archive progress callback failures stay within the task, stalled polling retries, and archive Activity events appear under Files. Dialog replacement preserves background isolation and keyboard focus.
 - First-run administrator setup and revocable authenticated sessions.
 - Named local, S3, FTP/FTPS and SFTP targets with encrypted credentials and independent user grants, scopes and permissions.
 - Application state and `.filebrowser-*` paths follow ordinary target scopes, permissions, and shares; administrators control their exposure without automatic state-directory exclusions.

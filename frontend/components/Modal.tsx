@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { IconX } from '@tabler/icons-react'
-import { modalStack as stack } from '../lib/modalStack'
+import { modalStack as stack, registerModal, unregisterModal } from '../lib/modalStack'
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
 
@@ -15,11 +15,8 @@ export function Modal({ title, description, icon, children, footer, onClose, siz
   const close = useEffectEvent(() => onClose())
   useEffect(() => {
     const root = backdrop.current!, node = panel.current!
-    const previous = document.activeElement as HTMLElement | null
     // Hide everything else from assistive technology and pointer/keyboard input while open.
-    const hidden = [...document.body.children].filter((element): element is HTMLElement => element !== root && element instanceof HTMLElement && !element.inert && !element.hasAttribute('data-overlay'))
-    for (const element of hidden) { element.inert = true; element.setAttribute('aria-hidden', 'true') }
-    stack.push(root)
+    registerModal(root)
     const initial = node.querySelector<HTMLElement>('[data-autofocus]') ?? node.querySelector<HTMLElement>('.modal-body ' + FOCUSABLE) ?? node.querySelector<HTMLElement>(FOCUSABLE)
     initial?.focus()
     const onKey = (event: KeyboardEvent) => {
@@ -36,9 +33,7 @@ export function Modal({ title, description, icon, children, footer, onClose, siz
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      stack.splice(stack.indexOf(root), 1)
-      for (const element of hidden) { element.inert = false; element.removeAttribute('aria-hidden') }
-      if (previous?.isConnected) previous.focus()
+      unregisterModal(root)
     }
   }, [])
   return createPortal(<div ref={backdrop} className={`modal-backdrop ${side ? 'is-side' : ''}`} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>

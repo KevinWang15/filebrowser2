@@ -37,7 +37,7 @@ export function TargetsView({ onChanged }: { onChanged: () => Promise<void> }) {
       </tr>)}</tbody></table></div>}
     <p className="page-foot">Grant members access in People & access. Administrators can access every enabled target.</p>
     {editing && <TargetEditor target={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await load(); await onChanged() }} />}
-    {removing && <Modal title={`Remove “${removing.name}”?`} description="This removes the connection and its access grants. Files stay in storage." onClose={() => !busy && setRemoving(null)} footer={<><button className="btn" onClick={() => setRemoving(null)}>Cancel</button><button className="btn btn-danger" disabled={!!busy} onClick={() => void remove()}>Remove target</button></>}><div className="modal-body"><p>Targets with transfer history or protocol shares must be disabled instead.</p></div></Modal>}
+    {removing && <Modal title={`Remove “${removing.name}”?`} description="This removes the connection and its access grants. Files stay in storage." onClose={() => !busy && setRemoving(null)} footer={<><button className="btn" onClick={() => setRemoving(null)}>Cancel</button><button className="btn btn-danger" disabled={!!busy} onClick={() => void remove()}>Remove target</button></>}><div className="modal-body"><p>Targets with transfer history, uncleared operations or protocol shares must be disabled instead.</p></div></Modal>}
   </div>
 }
 function TargetEditor({ target, onClose, onSaved }: { target?: AdminTarget; onClose: () => void; onSaved: () => Promise<void> }) {

@@ -17,7 +17,8 @@ export function OperationsProvider({ userId, children }: { userId: string; child
     const controller = new AbortController()
     const refresh = () => {
       const startedAt = revision.current
-      void api<Operation[]>('/operations', { signal: controller.signal }).then(operations => { if (!disposed && startedAt === revision.current) setOperations(operations) }).catch(() => {}).finally(() => {
+      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)])
+      void api<Operation[]>('/operations', { signal }).then(operations => { if (!disposed && startedAt === revision.current) setOperations(operations) }).catch(() => {}).finally(() => {
         if (!disposed) timer = setTimeout(refresh, 1000)
       })
     }

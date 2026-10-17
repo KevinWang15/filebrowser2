@@ -70,7 +70,7 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Immutable target type and location; other connection setting changes require resolving retained uploads, while name, enabled, and read-only flags can change independently.
 - Local read/write transitions and re-enabling writable targets verify write access and the storage lock before saving, preserving the previous configuration on failure.
 - Detection and rejection of equal or overlapping namespaces within a storage type, including local directory identity checks and remote bucket-prefix/root checks.
-- Disabling a target preserves transfer state for later recovery; targets with transfer history or shares must be disabled instead of removed.
+- Disabling a target preserves transfer state for later recovery; targets with transfer history, uncleared operations or shares must be disabled instead of removed.
 - Removing an eligible target removes its connection and grants while leaving stored files intact.
 - Lazy remote backend initialization: browsing one target does not contact unrelated targets, and remote recovery does not prevent application startup.
 - Explicit adapter capabilities for range reads, moves, sequential uploads, durability, exclusive publication, native directory exports, and multipart limits.

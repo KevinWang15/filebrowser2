@@ -281,7 +281,7 @@ test('setup, file operations, worker hashing, reload resume, scoped users, and m
   await page.getByRole('button', { name: 'Edit alex' }).click()
   await page.getByLabel('Disable this account').check()
   await page.getByRole('button', { name: 'Save changes', exact: true }).click()
-  await memberPage.getByRole('button', { name: 'My files', exact: true }).first().click()
+  // Background polling can revoke the workspace before another navigation click.
   await expect(memberPage.getByRole('heading', { name: 'Good to see you again.' })).toBeVisible()
   await member.close()
   const emptyUser = await context.request.post('/api/admin/users', { headers, data: { username: 'no-storage', password: 'no-storage-password-123', role: 'user', grants: [] } })

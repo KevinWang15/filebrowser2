@@ -91,29 +91,35 @@ export class Operations {
           if (force || Date.now() - lastSaved >= 500) { this.save(operation); lastSaved = Date.now() }
         },
       }
+      const guard = setInterval(() => { try { context.check() } catch (error) { active.abort.abort(error) } }, 500).unref()
+      const timeout = setTimeout(() => active.abort.abort(new Error('Operation exceeded its time limit')), plan.timeoutMs).unref()
+      const stopMonitoring = () => { clearInterval(guard); clearTimeout(timeout) }
       try {
-        context.check(); await plan.validate(context); context.check()
+        context.check(); await mkdir(context.directory, { mode: 0o700 }); context.check()
+        await plan.validate(context); context.check()
         this.store.db.prepare('INSERT INTO operations(id,user_id,target_id,scope,data) VALUES(?,?,?,?,?)')
           .run(operation.id, user.id, plan.resource?.targetId ?? null, plan.resource?.scope ?? null, JSON.stringify(operation))
-        void this.run(active, plan, context).then(finish, error => { this.onError(error); finish() })
+        void this.run(active, plan, context, stopMonitoring).then(finish, error => { this.onError(error); finish() })
         return { ...operation }
-      } catch (error) { this.running.delete(operation.id); finish(); throw error }
+      } catch (error) {
+        stopMonitoring()
+        try { await rm(context.directory, { recursive: true, force: true }) }
+        finally { this.running.delete(operation.id); finish() }
+        throw active.abort.signal.aborted ? active.abort.signal.reason : error
+      }
     })
   }
-  private async run(active: Running, plan: OperationPlan, context: OperationContext) {
+  private async run(active: Running, plan: OperationPlan, context: OperationContext, stopMonitoring: () => void) {
     const { operation, abort } = active
     let status: Operation['status'] = 'completed'
-    const guard = setInterval(() => { try { context.check() } catch (error) { abort.abort(error) } }, 500).unref()
-    const timeout = setTimeout(() => abort.abort(new Error('Operation exceeded its time limit')), plan.timeoutMs).unref()
     try {
-      await mkdir(context.directory, { mode: 0o700 }); context.check()
       await plan.execute(context); context.check()
     } catch (error) {
       status = abort.signal.aborted && abort.signal.reason === 'canceled' ? 'canceled' : 'failed'
       const reason = abort.signal.aborted ? abort.signal.reason : error
       operation.error = status === 'canceled' ? null : reason instanceof Error ? reason.message : 'Operation failed'
     } finally {
-      clearInterval(guard); clearTimeout(timeout)
+      stopMonitoring()
       await rm(context.directory, { recursive: true, force: true }).catch(() => { status = 'failed'; operation.error = 'Temporary operation data could not be removed.' })
       operation.status = status; operation.updatedAt = new Date().toISOString()
       if (status === 'completed') { operation.phase = 'Finished'; operation.progress = 1; operation.currentItem = ''; operation.warning = null }

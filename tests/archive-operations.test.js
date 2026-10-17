@@ -33,11 +33,11 @@ async function fixture(t, options = {}) {
     assert.equal(response.status, 202, await response.clone().text())
     return response.json()
   }
-  const wait = async (id, predicate = job => job.status !== 'running', auth = cookie) => {
+  const wait = async (id, predicate = operation => operation.status !== 'running', auth = cookie) => {
     const until = Date.now() + 20_000
     while (Date.now() < until) {
-      const jobs = await (await request('/operations', 'GET', undefined, auth)).json(), job = jobs.find(job => job.id === id)
-      if (job && predicate(job)) return job
+      const operations = await (await request('/operations', 'GET', undefined, auth)).json(), operation = operations.find(operation => operation.id === id)
+      if (operation && predicate(operation)) return operation
       await new Promise(resolve => setTimeout(resolve, 20))
     }
     throw new Error('Archive operation timed out: ' + id)
@@ -95,8 +95,8 @@ test('unsafe TAR paths, links, duplicates, ZIP symlinks and corrupt CRCs fail wi
   ]
   for (const [name, bytes] of examples) {
     await writeFile(join(f.files, name), bytes)
-    const job = await f.start('archive.decompress', { paths: ['/' + name], name: 'output' })
-    const result = await f.wait(job.id)
+    const operation = await f.start('archive.decompress', { paths: ['/' + name], name: 'output' })
+    const result = await f.wait(operation.id)
     assert.equal(result.status, 'failed', name); assert.ok(result.error, name)
     await assert.rejects(readFile(join(f.files, 'output', 'escape')), { code: 'ENOENT' })
     assert.ok(!(await readdir(f.files)).includes('output'), name)
@@ -109,8 +109,8 @@ test('expanded byte and entry limits reject compressed bombs before publishing',
   const tar = pack(), chunks = [], reading = (async () => { for await (const bytes of tar) chunks.push(bytes) })()
   tar.entry({ name: 'huge', size: 10000 }, Buffer.alloc(10000)); tar.finalize(); await reading
   await writeFile(join(f.files, 'bomb.tar.gz'), gzipSync(Buffer.concat(chunks)))
-  const job = await f.start('archive.decompress', { paths: ['/bomb.tar.gz'], name: 'output' })
-  assert.match((await f.wait(job.id)).error, /limit/)
+  const operation = await f.start('archive.decompress', { paths: ['/bomb.tar.gz'], name: 'output' })
+  assert.match((await f.wait(operation.id)).error, /limit/)
   const many = await f.start('archive.compress', { paths: ['/team'], name: 'many.zip', format: 'zip' })
   assert.match((await f.wait(many.id)).error, /limit/)
   assert.ok(!(await readdir(f.files)).includes('output'))
@@ -123,13 +123,37 @@ test('7z extraction rejects symbolic links and encrypted headers without creatin
   assert.equal(spawnSync(binary, ['a', '-snl', '-t7z', join(f.files, 'links.7z'), '.'], { cwd: input }).status, 0)
   assert.equal(spawnSync(binary, ['a', '-psecret', '-mhe=on', '-t7z', join(f.files, 'encrypted.7z'), join(f.files, 'extra.bin')]).status, 0)
   for (const name of ['links.7z', 'encrypted.7z']) {
-    const job = await f.start('archive.decompress', { paths: ['/' + name], name: 'unsafe-output' })
-    assert.equal((await f.wait(job.id)).status, 'failed')
+    const operation = await f.start('archive.decompress', { paths: ['/' + name], name: 'unsafe-output' })
+    assert.equal((await f.wait(operation.id)).status, 'failed')
     assert.ok(!(await readdir(f.files)).includes('unsafe-output'))
   }
 })
 
-test('permission revocation interrupts an archive job even when its source is stalled', async t => {
+test('permission revocation stops validation before reading the remaining selected sources', async t => {
+  const f = await fixture(t)
+  const response = await f.request('/admin/users', 'POST', { username: 'validation', password, role: 'user', disabled: false, grants: [{ targetId: f.targetId, scope: '/team', permissions: FULL_PERMISSIONS }] })
+  assert.equal(response.status, 201); const member = await response.json()
+  const login = await f.request('/auth/login', 'POST', { username: 'validation', password }), cookie = login.headers.get('set-cookie').split(';')[0]
+  const original = LocalStorage.prototype.stat, inspected = []
+  let entered, release
+  const ready = new Promise(resolve => { entered = resolve }), held = new Promise(resolve => { release = resolve })
+  LocalStorage.prototype.stat = async function(path, ...args) {
+    if (path === '/team/notes.txt') { inspected.push(path); entered(); await held }
+    else if (path === '/team/文件.txt') inspected.push(path)
+    return original.call(this, path, ...args)
+  }
+  t.after(() => { release(); LocalStorage.prototype.stat = original })
+  const pending = f.request('/operations', 'POST', { type: 'archive.compress', input: { targetId: f.targetId, paths: ['/notes.txt', '/文件.txt'], directory: '/', name: 'revoked.zip', format: 'zip' } }, cookie)
+  await ready
+  try {
+    assert.equal((await f.request('/admin/users/' + member.id, 'PATCH', { username: member.username, role: 'user', disabled: false, grants: [{ targetId: f.targetId, scope: '/team', permissions: { ...FULL_PERMISSIONS, upload: false } }] })).status, 200)
+  } finally { release() }
+  assert.equal((await pending).status, 403)
+  assert.deepEqual(inspected, ['/team/notes.txt'])
+  assert.deepEqual(await readdir(join(f.state, 'operations-work')), [])
+})
+
+test('permission revocation interrupts an archive operation even when its source is stalled', async t => {
   const f = await fixture(t)
   const response = await f.request('/admin/users', 'POST', { username: 'revoked', password, role: 'user', disabled: false, grants: [{ targetId: f.targetId, scope: '/team', permissions: FULL_PERMISSIONS }] })
   assert.equal(response.status, 201); const member = await response.json()
@@ -141,16 +165,16 @@ test('permission revocation interrupts an archive job even when its source is st
   }
   t.after(() => { LocalStorage.prototype.open = original })
   const started = await f.request('/operations', 'POST', { type: 'archive.compress', input: { targetId: f.targetId, paths: ['/notes.txt'], directory: '/', name: 'revoked.zip', format: 'zip' } }, cookie)
-  assert.equal(started.status, 202); const job = await started.json()
-  await f.wait(job.id, job => job.phase === 'Compressing', cookie)
+  assert.equal(started.status, 202); const operation = await started.json()
+  await f.wait(operation.id, operation => operation.phase === 'Compressing', cookie)
   assert.equal((await f.request('/admin/users/' + member.id, 'PATCH', { username: member.username, role: 'user', disabled: false, grants: [{ targetId: f.targetId, scope: '/team', permissions: { ...FULL_PERMISSIONS, upload: false } }] })).status, 200)
   const renewed = await f.request('/auth/login', 'POST', { username: 'revoked', password }), renewedCookie = renewed.headers.get('set-cookie').split(';')[0]
-  const result = await f.wait(job.id, undefined, renewedCookie)
+  const result = await f.wait(operation.id, undefined, renewedCookie)
   assert.equal(result.status, 'failed'); assert.match(result.error, /permission/); assert.equal(stalled.destroyed, true)
   assert.ok(!(await readdir(join(f.files, 'team'))).includes('revoked.zip'))
 })
 
-test('running jobs reserve paths, cancel stalled sources promptly, release resources and persist completed history', async t => {
+test('running operations reserve paths, cancel stalled sources promptly, release resources and persist completed history', async t => {
   const f = await fixture(t)
   const original = LocalStorage.prototype.open
   let stalled
@@ -159,41 +183,41 @@ test('running jobs reserve paths, cancel stalled sources promptly, release resou
     return original.call(this, path, ...args)
   }
   t.after(() => { LocalStorage.prototype.open = original })
-  const job = await f.start('archive.compress', { paths: ['/team/notes.txt'], name: 'pending.zip', format: 'zip' })
-  await f.wait(job.id, job => job.phase === 'Compressing')
+  const operation = await f.start('archive.compress', { paths: ['/team/notes.txt'], name: 'pending.zip', format: 'zip' })
+  await f.wait(operation.id, operation => operation.phase === 'Compressing')
   const rename = await f.request(`/targets/${f.targetId}/files`, 'PATCH', { path: '/team', name: 'moved' })
   assert.equal(rename.status, 409)
   const upload = await f.request('/uploads', 'POST', { targetId: f.targetId, name: 'pending.zip', directory: '/', size: 0, lastModified: 0, chunkSize: CHUNK_SIZE, hashes: [] })
   assert.equal(upload.status, 409)
-  assert.equal((await f.request(`/operations/${job.id}`, 'DELETE')).status, 409)
+  assert.equal((await f.request(`/operations/${operation.id}`, 'DELETE')).status, 409)
   assert.deepEqual(await (await f.request('/operations', 'DELETE')).json(), { clearedIds: [] })
-  const cancel = await f.request(`/operations/${job.id}/cancel`, 'POST')
+  const cancel = await f.request(`/operations/${operation.id}/cancel`, 'POST')
   assert.equal(cancel.status, 200); assert.equal((await cancel.json()).status, 'canceled'); assert.equal(stalled.destroyed, true)
   LocalStorage.prototype.open = original
   const next = await f.start('archive.compress', { paths: ['/team/notes.txt'], name: 'next.zip', format: 'zip' })
   assert.equal((await f.wait(next.id)).status, 'completed')
   await f.restart(async () => {
     const db = new DatabaseSync(join(f.state, 'filebrowser.sqlite'))
-    const data = JSON.parse(db.prepare('SELECT data FROM operations WHERE id=?').get(job.id).data)
-    data.status = 'running'; db.prepare('UPDATE operations SET data=? WHERE id=?').run(JSON.stringify(data), job.id); db.close()
-    await mkdir(join(f.state, 'operations-work', job.id)); await writeFile(join(f.state, 'operations-work', job.id, 'leftover'), 'scratch')
+    const data = JSON.parse(db.prepare('SELECT data FROM operations WHERE id=?').get(operation.id).data)
+    data.status = 'running'; db.prepare('UPDATE operations SET data=? WHERE id=?').run(JSON.stringify(data), operation.id); db.close()
+    await mkdir(join(f.state, 'operations-work', operation.id)); await writeFile(join(f.state, 'operations-work', operation.id, 'leftover'), 'scratch')
   })
   assert.equal((await f.wait(next.id)).status, 'completed')
-  assert.match((await f.wait(job.id)).error, /restarted/)
+  assert.match((await f.wait(operation.id)).error, /restarted/)
   assert.deepEqual(await readdir(join(f.state, 'operations-work')), [])
 })
 
-test('scoped permissions, job ownership, unfinished uploads and read-only targets are enforced', async t => {
+test('scoped permissions, operation ownership, unfinished uploads and read-only targets are enforced', async t => {
   const f = await fixture(t)
   const response = await f.request('/admin/users', 'POST', { username: 'member', password, role: 'user', disabled: false, grants: [{ targetId: f.targetId, scope: '/team', permissions: FULL_PERMISSIONS }] })
   assert.equal(response.status, 201); const member = await response.json()
   const login = await f.request('/auth/login', 'POST', { username: 'member', password }), cookie = login.headers.get('set-cookie').split(';')[0]
   const own = await f.request('/operations', 'POST', { type: 'archive.compress', input: { targetId: f.targetId, paths: ['/notes.txt'], directory: '/', name: 'member.zip', format: 'zip' } }, cookie)
-  assert.equal(own.status, 202); const job = await own.json()
-  assert.equal((await f.wait(job.id, undefined, cookie)).status, 'completed')
+  assert.equal(own.status, 202); const operation = await own.json()
+  assert.equal((await f.wait(operation.id, undefined, cookie)).status, 'completed')
   assert.ok((await readdir(join(f.files, 'team'))).includes('member.zip'))
-  assert.equal((await f.request(`/operations/${job.id}/cancel`, 'POST')).status, 404)
-  assert.equal((await f.request(`/operations/${job.id}`, 'DELETE')).status, 404)
+  assert.equal((await f.request(`/operations/${operation.id}/cancel`, 'POST')).status, 404)
+  assert.equal((await f.request(`/operations/${operation.id}`, 'DELETE')).status, 404)
   assert.deepEqual(await (await f.request('/operations', 'DELETE')).json(), { clearedIds: [] })
   assert.deepEqual(await (await f.request('/operations')).json(), [])
   const traversal = await f.request('/operations', 'POST', { type: 'archive.compress', input: { targetId: f.targetId, paths: ['/../extra.bin'], directory: '/', name: 'bad.zip', format: 'zip' } }, cookie)

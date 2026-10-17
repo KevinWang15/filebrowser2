@@ -108,15 +108,15 @@ export function FilesView({ targetName, path, user, transfers, density, folderRe
     if (refreshed) refreshTimer.current = setTimeout(() => { refreshTimer.current = null; setRefreshState('idle') }, 600)
   }, [load, path])
 
-  // Nested uploads can create new child folders, so ancestors also refresh on session changes.
-  const transferKey = transfers.filter(t => t.targetId === user.targetId && (t.directory === path || t.directory.startsWith(path === '/' ? '/' : path + '/'))).map(t => `${t.session?.id ?? t.id}:${t.state === 'completed' ? 1 : 0}`).sort().join()
+  // Uploads can create child folders; operation status changes can add or remove target entries.
+  const contentKey = transfers.filter(t => t.targetId === user.targetId && (t.directory === path || t.directory.startsWith(path === '/' ? '/' : path + '/'))).map(t => `${t.session?.id ?? t.id}:${t.state === 'completed' ? 1 : 0}`).sort().join()
     + '|' + operations.filter(operation => operation.targetId === user.targetId).map(operation => operation.id + ':' + operation.status).join()
-  const lastKey = useRef(transferKey)
+  const lastKey = useRef(contentKey)
   useEffect(() => {
-    if (lastKey.current === transferKey) return
-    lastKey.current = transferKey
+    if (lastKey.current === contentKey) return
+    lastKey.current = contentKey
     void load(path)
-  }, [transferKey, path, load])
+  }, [contentKey, path, load])
 
   const pending = useMemo(() => {
     const map = new Map<string, number>()
