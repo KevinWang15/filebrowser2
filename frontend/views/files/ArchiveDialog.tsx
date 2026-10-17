@@ -1,16 +1,18 @@
 import { useState, type FormEvent } from 'react'
 import { IconFileZip } from '@tabler/icons-react'
-import { ARCHIVE_FORMATS, type ArchiveFormat, type ArchiveJob, type FileEntry } from '@/shared/types'
+import { ARCHIVE_FORMATS, type ArchiveFormat, type FileEntry } from '@/shared/types'
 import { archiveStem } from '@/shared/archive-rules'
 import { isValidFileName, MAX_NAME_BYTES } from '@/shared/file-rules'
-import { api, errorMessage } from '../../api'
+import { errorMessage } from '../../api'
 import { Modal } from '../../components/Modal'
 import { Spinner } from '../../components/ui'
 import { plural } from '../../lib/format'
+import { useOperations } from '../../operations/context'
 
 export function ArchiveDialog({ targetId, operation, entries, directory, onClose, onStarted }: {
-  targetId: string; operation: 'compress' | 'decompress'; entries: FileEntry[]; directory: string; onClose: () => void; onStarted: (job: ArchiveJob) => void
+  targetId: string; operation: 'compress' | 'decompress'; entries: FileEntry[]; directory: string; onClose: () => void; onStarted: () => void
 }) {
+  const { start } = useOperations()
   const compress = operation === 'compress'
   const [format, setFormat] = useState<ArchiveFormat>('zip')
   const [name, setName] = useState(compress ? (entries.length === 1 ? entries[0].name : 'archive') + '.zip' : archiveStem(entries[0].name))
@@ -22,8 +24,8 @@ export function ArchiveDialog({ targetId, operation, entries, directory, onClose
     if (!valid || busy) return
     setBusy(true); setError('')
     try {
-      const job = await api<ArchiveJob>(`/targets/${targetId}/archive-jobs`, { method: 'POST', body: { operation, paths: entries.map(entry => entry.path), directory, name: trimmed, ...(compress ? { format } : {}) } })
-      onStarted(job)
+      await start('archive.' + operation, { targetId, paths: entries.map(entry => entry.path), directory, name: trimmed, ...(compress ? { format } : {}) })
+      onStarted()
     } catch (error) { setError(errorMessage(error)); setBusy(false) }
   }
   return <Modal title={compress ? 'Compress' : 'Decompress'} icon={<IconFileZip size={17} />} onClose={() => !busy && onClose()}

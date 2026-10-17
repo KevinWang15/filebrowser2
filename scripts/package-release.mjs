@@ -62,9 +62,9 @@ await writeFile(join(app, 'package.json'), JSON.stringify({ name: definition.nam
 for (const path of ['LICENSE', 'NOTICE.md', 'THIRD_PARTY_NOTICES.md', 'licenses']) await cp(path, join(output, path), { recursive: true })
 await cp('examples', join(output, 'examples'), { recursive: true })
 await mkdir(join(output, 'docs'))
-for (const name of ['storage-targets.md', 'network-shares.md', 'archive-operations.md']) await cp(join('docs', name), join(output, 'docs', name))
+for (const name of ['storage-targets.md', 'network-shares.md', 'operations.md', 'archive-operations.md']) await cp(join('docs', name), join(output, 'docs', name))
 await writeFile(join(output, 'DEPLOYMENT.md'), (await readFile('docs/deployment.md', 'utf8'))
-  .replaceAll('(../examples/', '(examples/').replaceAll('(storage-targets.md)', '(docs/storage-targets.md)').replaceAll('(network-shares.md)', '(docs/network-shares.md)').replaceAll('(archive-operations.md)', '(docs/archive-operations.md)'))
+  .replaceAll('(../examples/', '(examples/').replaceAll('(storage-targets.md)', '(docs/storage-targets.md)').replaceAll('(network-shares.md)', '(docs/network-shares.md)').replaceAll('(archive-operations.md)', '(docs/archive-operations.md)').replaceAll('(operations.md)', '(docs/operations.md)'))
 const server = await readFile(join(app, 'dist/server/server.js'))
 let sourceCommit = process.env.FB_BUILD_COMMIT ?? null
 if (!sourceCommit) {

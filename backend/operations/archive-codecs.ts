@@ -10,8 +10,8 @@ import { ZipFile } from 'yazl'
 import * as yauzl from 'yauzl'
 import type { ArchiveFormat } from '@/shared/types'
 import { MAX_PATH_LENGTH } from '@/shared/file-rules'
-import { normalizePath, validName } from './storage/paths'
-import { HttpError } from './errors'
+import { normalizePath, validName } from '../storage/paths'
+import { HttpError } from '../errors'
 
 export interface ArchiveMember { name: string; kind: 'file' | 'directory'; size: number }
 export interface PackMember extends ArchiveMember { modifiedAt: string; open: () => Promise<Readable> }

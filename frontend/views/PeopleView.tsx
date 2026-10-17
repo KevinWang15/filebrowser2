@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { IconFolder, IconLock, IconPencil, IconShieldCheck, IconUserCog, IconUserPlus, IconUsers } from '@tabler/icons-react'
 import { FULL_PERMISSIONS, PERMISSIONS, READ_PERMISSIONS, type Permissions, type User, type Target, type TargetGrant } from '@/shared/types'
+import { PageHeader } from '../components/PageHeader'
 import { api, errorMessage } from '../api'
 import { Modal } from '../components/Modal'
 import { Avatar, EmptyState, SearchField, Segmented, Spinner } from '../components/ui'
@@ -43,14 +44,13 @@ export function PeopleView({ currentUser, onAuthChanged }: { currentUser: User; 
   const visible = list.filter(user => (!query || user.username.toLowerCase().includes(query) || user.grants.some(grant => grant.scope.toLowerCase().includes(query)))
     && (filter === 'all' || (filter === 'disabled' ? user.disabled : user.role === filter && !user.disabled)))
   return <div className="page">
-    <header className="page-header">
+    <PageHeader actions={<>
+      <SearchField value={search} onChange={setSearch} label="Search people" placeholder="Filter by name or folder" />
+        <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}><IconUserPlus size={15} /><span className="btn-label">Add a person</span></button>
+    </>}>
       <div className="page-heading"><h1 className="page-title"><IconUsers size={18} className="title-icon" />People & access</h1>
         <span className="page-sub">Accounts, storage targets, home folders, and permissions</span></div>
-      <div className="page-actions">
-        <SearchField value={search} onChange={setSearch} label="Search people" placeholder="Filter by name or folder" />
-        <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}><IconUserPlus size={15} /><span className="btn-label">Add a person</span></button>
-      </div>
-    </header>
+    </PageHeader>
     <div className="toolbar">
       <Segmented size="sm" label="Filter people" value={filter} onChange={setFilter} options={[
         { value: 'all', label: 'All', count: list.length },

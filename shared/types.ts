@@ -89,14 +89,18 @@ export interface ChunkAttempt {
 
 export const ARCHIVE_FORMATS = ['tar.gz', 'tar', 'zip', '7z'] as const
 export type ArchiveFormat = typeof ARCHIVE_FORMATS[number]
-export type ArchiveJobStatus = 'running' | 'completed' | 'failed' | 'canceled'
-export interface ArchiveJob {
-  id: string; targetId: string; operation: 'compress' | 'decompress'; format: ArchiveFormat
-  paths: string[]; destination: string; status: ArchiveJobStatus
-  phase: 'scanning' | 'compressing' | 'decompressing' | 'saving' | 'finished'
-  processedBytes: number; totalBytes: number | null; processedFiles: number; totalFiles: number | null
-  currentFile: string; progress: number | null; error: string | null; createdAt: string; updatedAt: string
+export type OperationStatus = 'running' | 'completed' | 'failed' | 'canceled'
+export interface OperationProgress {
+  phase: string; progress: number | null; warning: string | null
+  processedBytes: number; totalBytes: number | null
+  processedItems: number; totalItems: number | null; currentItem: string
 }
+export interface Operation extends OperationProgress {
+  id: string; type: string; title: string; description: string; unit: string
+  targetId: string | null; status: OperationStatus; error: string | null
+  createdAt: string; updatedAt: string
+}
+export interface ClearedOperations { clearedIds: string[] }
 
 export interface AuditEntry {
   id: number

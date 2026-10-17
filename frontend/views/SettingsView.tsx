@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { IconDeviceDesktop, IconLock, IconMoon, IconPalette, IconServer, IconSettings, IconShieldCheck, IconSun } from '@tabler/icons-react'
 import type { Bootstrap, SystemInfo, User } from '@/shared/types'
+import { PageHeader } from '../components/PageHeader'
 import { VERSION } from '@/shared/version'
 import { api, errorMessage } from '../api'
 import { Progress, Segmented, Spinner } from '../components/ui'
@@ -38,10 +39,10 @@ export function SettingsView({ user, bootstrap, system, onAuthChanged }: { user:
     catch (error) { notify(errorMessage(error), true) } finally { setBusy(null) }
   }
   return <div className="page page-scroll">
-    <header className="page-header">
+    <PageHeader>
       <div className="page-heading"><h1 className="page-title"><IconSettings size={18} className="title-icon" />{user.role === 'admin' ? 'Settings' : 'Account settings'}</h1>
         <span className="page-sub">Signed in as <strong>{user.username}</strong></span></div>
-    </header>
+    </PageHeader>
     <div className="settings">
       {user.role === 'admin' && <Section icon={<IconSettings size={15} />} title="Workspace" description="Shown to everyone in the sidebar and on the sign-in page.">
         <form onSubmit={event => void save(event)}>

@@ -173,11 +173,17 @@ Implementation details are in the [HTTP API](backend/app.ts), [storage adapters]
 - Pending-upload details explain transfer state and link to Transfers; previews become available after completion.
 - Explicit no-preview, image-decoding failure, loading, and preview-fetch error states.
 
+## Operations
+
+- A common operation model, typed handler registration, persisted lifecycle, progress, cancellation, concurrency limits and restart recovery.
+- A shared top-right Operations button with an uncleared-task count on every workspace page; it is hidden when empty.
+- A progress window with individual clearing and Clear finished; clearing tasks persists across reloads and preserves output files.
+- Compress and Decompress are operation types; the manager and UI do not depend on archive formats or archive execution.
+
 ## Downloads and archives
 
 - Dedicated Compress and Decompress actions, independent of streamed downloads, for TAR.GZ/TGZ, TAR, ZIP and 7z.
-- Stored archives and extraction into new folders across storage adapters, with persisted job history, phase/byte/file progress, cancellation, path reservations and publication through verified chunks.
-- Dedicated archive progress modal that reopens from My files or the command palette and survives reloads; Transfers remains dedicated to uploads.
+- Stored archives and extraction into new folders across storage adapters, using common operation progress and cancellation, path reservations and publication through verified chunks.
 - Bounded expanded sizes and entry counts, validated paths, link/special-file rejection and ZIP CRC32 checks. See [archive operations](docs/archive-operations.md) for limits and native 7-Zip requirements.
 
 - Authenticated native browser file downloads with attachment disposition and UTF-8 filenames.

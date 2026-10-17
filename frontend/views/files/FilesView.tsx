@@ -4,7 +4,8 @@ import {
   IconInfoCircle, IconLayoutGrid, IconLayoutList, IconLayoutSidebarRight, IconLayoutSidebarRightFilled, IconPencil, IconRefresh, IconSearch,
   IconSelectAll, IconSortAscending, IconTrash, IconUpload, IconX, IconChevronRight, IconFileZip,
 } from '@tabler/icons-react'
-import type { ArchiveJob, FileEntry, TargetAccess } from '@/shared/types'
+import type { FileEntry, TargetAccess } from '@/shared/types'
+import { PageHeader } from '../../components/PageHeader'
 import { archiveFormat } from '@/shared/archive-rules'
 import { targetFiles } from '../../lib/targets'
 import { api, errorMessage } from '../../api'
@@ -24,6 +25,7 @@ import { FileGrid, FileTable, SkeletonRows } from './FileList'
 import { FileViewer } from './FileViewer'
 import { Inspector } from './Inspector'
 import { ArchiveDialog } from './ArchiveDialog'
+import { useOperations } from '../../operations/context'
 
 type Listing = { path: string; entries: FileEntry[]; error: string }
 type Dialog = { kind: 'folder' } | { kind: 'rename'; entry: FileEntry } | { kind: 'delete'; entries: FileEntry[] } | { kind: 'compress' | 'decompress'; entries: FileEntry[] }
@@ -32,12 +34,12 @@ const HEADER_HEIGHT = 30
 
 const join = (directory: string, name: string) => (directory === '/' ? '' : directory) + '/' + name
 
-export function FilesView({ targetName, path, user, transfers, archiveJobs, density, folderRequest, onNavigate, onTargets, onUpload, onAddFiles, onTransfers, onArchiveStarted, onArchiveProgress }: {
-  targetName: string; path: string; user: TargetAccess; transfers: Transfer[]; archiveJobs: ArchiveJob[]; density: 'compact' | 'comfortable'; folderRequest: number
+export function FilesView({ targetName, path, user, transfers, density, folderRequest, onNavigate, onTargets, onUpload, onAddFiles, onTransfers }: {
+  targetName: string; path: string; user: TargetAccess; transfers: Transfer[]; density: 'compact' | 'comfortable'; folderRequest: number
   onNavigate: (path: string) => void; onTargets: () => void; onUpload: () => void; onAddFiles: (files: UploadSource[], directory: string) => void; onTransfers: () => void
-  onArchiveStarted: (job: ArchiveJob) => void; onArchiveProgress: () => void
 }) {
   const notify = useNotify()
+  const { operations } = useOperations()
   const [listing, setListing] = useState<Listing>({ path: '', entries: [], error: '' })
   const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success'>('idle')
   const refreshController = useRef<AbortController | null>(null)
@@ -108,7 +110,7 @@ export function FilesView({ targetName, path, user, transfers, archiveJobs, dens
 
   // Nested uploads can create new child folders, so ancestors also refresh on session changes.
   const transferKey = transfers.filter(t => t.targetId === user.targetId && (t.directory === path || t.directory.startsWith(path === '/' ? '/' : path + '/'))).map(t => `${t.session?.id ?? t.id}:${t.state === 'completed' ? 1 : 0}`).sort().join()
-    + '|' + archiveJobs.filter(job => job.targetId === user.targetId).map(job => job.id + ':' + job.status).join()
+    + '|' + operations.filter(operation => operation.targetId === user.targetId).map(operation => operation.id + ':' + operation.status).join()
   const lastKey = useRef(transferKey)
   useEffect(() => {
     if (lastKey.current === transferKey) return
@@ -285,7 +287,11 @@ export function FilesView({ targetName, path, user, transfers, archiveJobs, dens
   }
 
   return <div className={`files-view ${dragging ? 'is-dragging' : ''}`} {...dropHandlers}>
-    <header className="page-header">
+    <PageHeader actions={<>
+      <SearchField value={search} onChange={setSearch} label="Search files" placeholder="Filter this folder" inputRef={searchRef} shortcut="/" />
+        {can(user, 'create') && <button type="button" className="btn" onClick={() => setDialog({ kind: 'folder' })}><IconFolderPlus size={15} /><span className="btn-label">New folder</span></button>}
+        {can(user, 'upload') && <button type="button" className="btn btn-primary" onClick={onUpload}><IconUpload size={15} /><span className="btn-label">Upload files</span></button>}
+    </>}>
       <nav className="breadcrumbs" aria-label="Breadcrumb">
         <button type="button" className="icon-btn" aria-label="Parent folder" data-tip="Parent folder (Ctrl/⌘ ↑ or Backspace)" onClick={() => path === '/' ? onTargets() : onNavigate(parentPath(path))}><IconArrowUp size={16} /></button>
         <ol>
@@ -295,13 +301,7 @@ export function FilesView({ targetName, path, user, transfers, archiveJobs, dens
           <li aria-current="page"><IconChevronRight size={13} className="crumb-sep" /><h1 className="page-title" title={title}>{title}</h1></li>
         </ol>
       </nav>
-      <div className="page-actions">
-        <SearchField value={search} onChange={setSearch} label="Search files" placeholder="Filter this folder" inputRef={searchRef} shortcut="/" />
-        {archiveJobs.length > 0 && <button type="button" className="btn" aria-label="Archive operations" onClick={onArchiveProgress}><IconFileZip size={15} /><span className="btn-label">Archive operations</span></button>}
-        {can(user, 'create') && <button type="button" className="btn" onClick={() => setDialog({ kind: 'folder' })}><IconFolderPlus size={15} /><span className="btn-label">New folder</span></button>}
-        {can(user, 'upload') && <button type="button" className="btn btn-primary" onClick={onUpload}><IconUpload size={15} /><span className="btn-label">Upload files</span></button>}
-      </div>
-    </header>
+    </PageHeader>
 
     <div className="toolbar">
       {picked.length > 0 ? <div className="selection-bar">
@@ -363,9 +363,7 @@ export function FilesView({ targetName, path, user, transfers, archiveJobs, dens
     </div>
 
     {menu && <Menu {...menu} onClose={() => setMenu(null)} />}
-    {(dialog?.kind === 'compress' || dialog?.kind === 'decompress') && <ArchiveDialog targetId={user.targetId} operation={dialog.kind} entries={dialog.entries} directory={path} onClose={() => setDialog(null)} onStarted={job => {
-      setDialog(null); onArchiveStarted(job)
-    }} />}
+    {(dialog?.kind === 'compress' || dialog?.kind === 'decompress') && <ArchiveDialog targetId={user.targetId} operation={dialog.kind} entries={dialog.entries} directory={path} onClose={() => setDialog(null)} onStarted={() => setDialog(null)} />}
     {viewEntry && !dialog && <FileViewer entry={viewEntry} siblings={files} user={user} onClose={() => setViewing(null)} onStep={entry => { setViewing(entry.path); select(entry.uploading ? [] : [entry.path], entry.path) }}
       onDownload={() => downloadItems([viewEntry])} onRename={() => rename(viewEntry)} onDelete={() => remove([viewEntry])} onCopyPath={() => copyPath(viewEntry.path)} onTransfers={onTransfers} />}
     {dialog?.kind === 'folder' && <NameDialog targetId={user.targetId} mode="folder" directory={path} onClose={() => setDialog(null)} onDone={async name => {

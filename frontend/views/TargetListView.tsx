@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { IconAlertTriangle, IconChevronRight, IconHome2, IconRefresh, IconServer } from '@tabler/icons-react'
 import type { Target } from '@/shared/types'
+import { PageHeader } from '../components/PageHeader'
 import { EmptyState, SearchField } from '../components/ui'
 import { plural } from '../lib/format'
 import { TARGET_LABELS } from '../lib/target-connections'
@@ -16,10 +17,9 @@ export function TargetListView({ targets, admin, unavailable, onOpen, onManage, 
   const refresh = async () => { setRefreshing(true); try { await onRefresh() } finally { setRefreshing(false) } }
 
   return <div className="page target-list-view">
-    <header className="page-header">
+    <PageHeader actions={<SearchField value={search} onChange={setSearch} label="Search targets" placeholder="Filter targets" />}>
       <nav className="breadcrumbs" aria-label="Breadcrumb"><ol><li aria-current="page"><h1 className="page-title"><IconHome2 size={17} className="title-icon" />My files</h1></li></ol></nav>
-      <div className="page-actions"><SearchField value={search} onChange={setSearch} label="Search targets" placeholder="Filter targets" /></div>
-    </header>
+    </PageHeader>
     <div className="toolbar">
       <span className="toolbar-info">{plural(targets.length, 'target')}</span>
       <div className="toolbar-right">

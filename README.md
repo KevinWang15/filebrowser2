@@ -32,6 +32,7 @@ See [deployment and configuration](docs/deployment.md) for native services, cont
 - Administrator console for named local, S3, FTP/FTPS and SFTP targets; encrypted connection secrets, connection checks, read-only controls, and independent user grants and home folders per target.
 - Targets as the first level of My files, with target and folder breadcrumbs; files and folders, list/grid views, search, sorting, rename, recursive folder/file deletion, text/image previews, and HTTP byte-range downloads.
 - Streamed TAR downloads of folders and mixed selections, including empty directories, without temporary archives. Managed pending upload destinations are excluded.
+- A shared [Operations system](docs/operations.md) with a counted entry point, persistent progress, cancellation and clearing of finished tasks.
 - Dedicated Compress and Decompress actions for TAR.GZ, TAR, ZIP and 7z, with stored results, background progress and cancellation. See [archive operations](docs/archive-operations.md) for permissions, scratch space, limits and native 7-Zip setup.
 - Light, dark and system themes; compact and comfortable layouts; a file inspector, context menus, keyboard shortcuts, and a command palette.
 - Resumable uploads up to 1 TiB per file, subject to each target's part-count limit, with SHA-256 manifests and sequential 100 MiB chunks. Each current chunk can use one, two, or four connections.

@@ -5,7 +5,7 @@ import type { Readable } from 'node:stream'
 import cookie from '@fastify/cookie'
 import staticFiles from '@fastify/static'
 import { z } from 'zod'
-import { ARCHIVE_FORMATS, MAX_CHUNKS, type SystemInfo, type TargetGrant, type TargetAccess, type Permission } from '@/shared/types'
+import { MAX_CHUNKS, type SystemInfo, type TargetGrant, type TargetAccess, type Permission } from '@/shared/types'
 import { VERSION } from '@/shared/version'
 import { MAX_NAME_BYTES, MAX_PATH_LENGTH, supportsTextPreview } from '@/shared/file-rules'
 import { removeTree } from './storage/remove-tree'
@@ -17,7 +17,8 @@ import { Targets, targetSchema } from './targets'
 import { normalizePath, requirePermission, scopedPath, validName, uploadingPath } from './storage/paths'
 import { Uploads, type UploadFaults } from './uploads'
 import { Archives, ArchiveResources } from './archives'
-import { ArchiveJobs } from './archive-jobs'
+import { Operations } from './operations/manager'
+import { ArchiveOperations } from './operations/archives'
 import { DirectoryShares } from './shares/manager'
 import { shareNameSchema } from './shares/control'
 
@@ -69,11 +70,14 @@ export async function createApp(options: AppOptions = {}) {
   const app = Fastify({ logger: options.logger ? { level: process.env.FB_LOG_LEVEL ?? 'info' } : false, bodyLimit: 2 * 1024 * 1024, requestTimeout: 60 * 60 * 1000,
     connectionTimeout: 0, forceCloseConnections: true, ajv: { customOptions: { coerceTypes: false, removeAdditional: false } } })
   let shares: DirectoryShares
-  const archiveJobs = new ArchiveJobs(store, targets, (targetId, path) => shares.blockMutation(targetId, path), { maxBytes: options.archiveMaxBytes, maxEntries: options.archiveMaxEntries })
+  const archiveOperations = new ArchiveOperations(store, targets, (targetId, path) => shares.blockMutation(targetId, path), { maxBytes: options.archiveMaxBytes, maxEntries: options.archiveMaxEntries })
+  const operations = new Operations(store, stateDirectory, archiveOperations.handlers,
+    (user, targetId, scope) => { try { return targets.access(user, targetId).scope === scope } catch { return false } },
+    mutate, error => app.log.error({ err: error }, 'Could not persist operation status'))
   try {
     shares = new DirectoryShares(store, targets, protocolDirectory,
     options.smbEnabled ?? process.env.FB_SMB_ENABLED === 'true', options.smbPublicHost || process.env.FB_SMB_PUBLIC_HOST || null)
-    await uploads.recover((targetId, error) => app.log.warn({ err: error, targetId }, 'Local target recovery could not finish')); await shares.init(); await archiveJobs.init()
+    await uploads.recover((targetId, error) => app.log.warn({ err: error, targetId }, 'Local target recovery could not finish')); await shares.init(); await operations.init()
   }
   catch (error) { uploads.close(); await targets.close(); store.close(); throw error }
   await app.register(cookie)
@@ -88,7 +92,7 @@ export async function createApp(options: AppOptions = {}) {
     try { return await fn() } finally { fileMutations.delete(targetId) }
   }
   function checkActivePath(targetId: string, path: string) {
-    archiveJobs.blockMutation(targetId, path)
+    operations.blockMutation(targetId, path)
     shares.blockMutation(targetId, path)
     if (store.retainedUploads().some(u => u.target_id === targetId && [u.path, uploadingPath(u.path)].some(name => name === path || name.startsWith(path + '/')))) throw new HttpError(409, 'This path contains an unfinished transfer. Finish or cancel it first.', 'DESTINATION_BUSY')
   }
@@ -331,13 +335,14 @@ export async function createApp(options: AppOptions = {}) {
   })
 
   app.get('/api/targets', async request => targets.list(requireUser(request)))
-  app.get('/api/archive-jobs', async request => archiveJobs.list(requireUser(request)))
-  app.post<{ Params: { targetId: string } }>('/api/targets/:targetId/archive-jobs', async (request, reply) => {
-    const targetId = idSchema.parse(request.params.targetId)
-    const body = z.object({ operation: z.enum(['compress', 'decompress']), paths: z.array(z.string()).min(1).max(1000), directory: z.string(), name: z.string(), format: z.enum(ARCHIVE_FORMATS).optional() }).strict().parse(request.body)
-    return reply.code(202).send(await mutate(targetId, () => archiveJobs.start(requireUser(request), targetId, body)))
+  app.get('/api/operations', async request => operations.list(requireUser(request)))
+  app.post('/api/operations', async (request, reply) => {
+    const body = z.object({ type: z.string().min(1).max(100), input: z.unknown() }).strict().parse(request.body)
+    return reply.code(202).send(await operations.start(requireUser(request), body.type, body.input))
   })
-  app.post<{ Params: { id: string } }>('/api/archive-jobs/:id/cancel', async request => archiveJobs.cancel(requireUser(request), idSchema.parse(request.params.id)))
+  app.post<{ Params: { id: string } }>('/api/operations/:id/cancel', async request => operations.cancel(requireUser(request), idSchema.parse(request.params.id)))
+  app.delete('/api/operations', async request => operations.clear(requireUser(request)))
+  app.delete<{ Params: { id: string } }>('/api/operations/:id', async request => operations.clear(requireUser(request), idSchema.parse(request.params.id)))
   app.get('/api/admin/targets', async request => { requireAdmin(request); return store.targets().map(row => targets.adminView(row)) })
   app.post('/api/admin/targets', async (request, reply) => {
     const actor = requireAdmin(request), target = targets.create(targetSchema.parse(request.body))
@@ -347,7 +352,7 @@ export async function createApp(options: AppOptions = {}) {
   app.patch<{ Params: { id: string } }>('/api/admin/targets/:id', async request => {
     const actor = requireAdmin(request), id = idSchema.parse(request.params.id)
     return mutate(id, async () => {
-      await archiveJobs.stopTarget(id)
+      await operations.stopTarget(id)
       const target = await targets.update(id, targetSchema.parse(request.body), () => { requireAdmin(request) })
       await closeArchives(id)
       store.audit(actor.username, 'target.updated', target.name, id)
@@ -358,7 +363,7 @@ export async function createApp(options: AppOptions = {}) {
   app.delete<{ Params: { id: string } }>('/api/admin/targets/:id', async (request, reply) => {
     const actor = requireAdmin(request), id = idSchema.parse(request.params.id), name = targets.row(id).name
     return mutate(id, async () => {
-      await archiveJobs.stopTarget(id)
+      await operations.stopTarget(id)
       await targets.remove(id); await closeArchives(id)
       store.audit(actor.username, 'target.deleted', name)
       return reply.code(204).send()
@@ -376,7 +381,7 @@ export async function createApp(options: AppOptions = {}) {
     const manifest = manifestSchema.parse(request.body), user = requireUser(request)
     return reply.code(201).send(await mutate(manifest.targetId, () => {
       const access = targets.access(user, manifest.targetId, 'upload')
-      archiveJobs.blockMutation(manifest.targetId, scopedPath(access, posix.join(normalizePath(manifest.directory), validName(manifest.name))))
+      operations.blockMutation(manifest.targetId, scopedPath(access, posix.join(normalizePath(manifest.directory), validName(manifest.name))))
       return uploads.initialize(user, manifest, () => { requireUser(request) })
     }))
   })
@@ -494,7 +499,7 @@ export async function createApp(options: AppOptions = {}) {
       return reply.sendFile('index.html')
     })
   }
-  app.addHook('preClose', async () => { await archiveJobs.close(); auth.close(); uploads.close(); for (const id of archives.keys()) await closeArchives(id); await shares.close() })
+  app.addHook('preClose', async () => { await operations.close(); auth.close(); uploads.close(); for (const id of archives.keys()) await closeArchives(id); await shares.close() })
   app.addHook('onClose', async () => { await targets.close(); store.close() })
   return app
 }

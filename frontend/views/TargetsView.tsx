@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { IconPlus, IconServer, IconPencil, IconTrash } from '@tabler/icons-react'
 import type { AdminTarget, TargetConnection, TargetType } from '@/shared/types'
+import { PageHeader } from '../components/PageHeader'
 import { api, errorMessage } from '../api'
 import { Modal } from '../components/Modal'
 import { ConnectionFields } from '../components/ConnectionFields'
@@ -25,7 +26,9 @@ export function TargetsView({ onChanged }: { onChanged: () => Promise<void> }) {
     catch (error) { notify(errorMessage(error), true) } finally { setBusy('') }
   }
   return <div className="page page-scroll">
-    <header className="page-header"><div className="page-heading"><h1 className="page-title"><IconServer size={18} />Storage targets</h1><span className="page-sub">Named storage connections with independent access grants</span></div><button className="btn btn-primary" onClick={() => setEditing('new')}><IconPlus size={15} />Add target</button></header>
+    <PageHeader actions={<button className="btn btn-primary" onClick={() => setEditing('new')}><IconPlus size={15} />Add target</button>}>
+      <div className="page-heading"><h1 className="page-title"><IconServer size={18} />Storage targets</h1><span className="page-sub">Named storage connections with independent access grants</span></div>
+    </PageHeader>
     {!targets ? <div className="empty"><Spinner /></div> : !targets.length ? <EmptyState icon={IconServer} title="No storage targets">Add a local directory, S3 bucket, FTP server or SFTP server.</EmptyState> :
       <div className="table-wrap"><table className="data-table"><thead><tr><th>Name</th><th>Storage type</th><th>Access</th><th>Status</th><th>Actions</th></tr></thead><tbody>{targets.map(target => <tr key={target.id}>
         <td><strong>{target.name}</strong></td><td>{TARGET_LABELS[target.type]}</td><td>{target.readOnly ? 'Read only' : 'Read and write'}</td><td>{target.enabled ? 'Enabled' : 'Disabled'}</td>

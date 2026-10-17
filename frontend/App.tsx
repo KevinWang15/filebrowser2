@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import {
   IconActivity, IconAlertTriangle, IconArrowsTransferUp, IconCommand, IconDeviceDesktop, IconFolderPlus, IconFolders, IconKeyboard, IconLayoutRows,
-  IconFileZip, IconLogout, IconMoon, IconRefresh, IconServer, IconSettings, IconSun, IconUpload, IconUsers, type Icon,
+  IconListCheck, IconLogout, IconMoon, IconRefresh, IconServer, IconSettings, IconSun, IconUpload, IconUsers, type Icon,
 } from '@tabler/icons-react'
 import type { Bootstrap, SystemInfo, UploadSession, User } from '@/shared/types'
 import { VERSION } from '@/shared/version'
@@ -17,7 +17,8 @@ import { shortcutBlocked } from './lib/modalStack'
 import { NotifyContext } from './lib/notify'
 import { isRunning, STATE_LABELS, transferProgress } from './lib/transfers'
 import { targetAccess } from './lib/targets'
-import { useArchiveJobs } from './lib/archive-jobs'
+import { useOperations } from './operations/context'
+import { OperationsProvider } from './operations/OperationsProvider'
 import { TargetsView } from './views/TargetsView'
 import { TargetListView } from './views/TargetListView'
 import { can } from './lib/permissions'
@@ -31,7 +32,7 @@ import { PeopleView } from './views/PeopleView'
 import { SettingsView } from './views/SettingsView'
 import { TransfersView } from './views/TransfersView'
 import { UploadDialog } from './views/UploadDialog'
-import { ArchiveJobsDialog } from './views/ArchiveJobsDialog'
+import { OperationsDialog } from './operations/OperationsDialog'
 
 const CONNECTIONS = ['1', '2', '4'] as const
 
@@ -61,7 +62,7 @@ export default function App() {
       : <div className="splash-loading"><Spinner /><span>Opening workspace…</span></div>}
   </div>
   if (bootstrap.needsSetup || !bootstrap.user) return <><AuthScreen setup={bootstrap.needsSetup} siteName={bootstrap.siteName} setupLocalPath={bootstrap.setupLocalPath} setupLocalReadOnly={bootstrap.setupLocalReadOnly} onDone={refresh} /><Tooltips /></>
-  return <Workspace key={bootstrap.user.id} bootstrap={bootstrap} user={bootstrap.user} appearance={appearance} onAuthChanged={refresh} />
+  return <OperationsProvider key={bootstrap.user.id} userId={bootstrap.user.id}><Workspace bootstrap={bootstrap} user={bootstrap.user} appearance={appearance} onAuthChanged={refresh} /></OperationsProvider>
 }
 
 function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: Bootstrap; user: User; appearance: ReturnType<typeof useAppearance>; onAuthChanged: () => Promise<void> }) {
@@ -70,8 +71,7 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
   const [connections, setConnections] = usePref('connections', '1', CONNECTIONS)
   const [engine] = useState(() => new UploadEngine(bootstrap.upload))
   const [transfers, setTransfers] = useState<Transfer[]>([])
-  const { jobs: archiveJobs, cancel: cancelArchive, track: trackArchive } = useArchiveJobs()
-  const [archiveWindow, setArchiveWindow] = usePref('archive-window-' + user.id, 'closed', ['open', 'closed'] as const)
+  const { operations, open: openOperations } = useOperations()
   const [system, setSystem] = useState<SystemInfo | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [overlay, setOverlay] = useState<'upload' | 'palette' | 'shortcuts' | null>(null)
@@ -163,7 +163,7 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
     { id: 'settings', group: 'Go to', label: admin ? 'Settings' : 'Account settings', icon: IconSettings, shortcut: 'G S', run: () => go('settings') },
     ...(can(access, 'upload') ? [{ id: 'upload', group: 'Actions', label: 'Upload files', icon: IconUpload, keywords: 'add', run: openUpload }] : []),
     ...(can(access, 'create') ? [{ id: 'folder', group: 'Actions', label: 'New folder…', icon: IconFolderPlus, keywords: 'create mkdir', run: () => { go('files', folder); setFolderRequest(value => value + 1) } }] : []),
-    ...(archiveJobs.length ? [{ id: 'archives', group: 'Actions', label: 'Archive operations', icon: IconFileZip, keywords: 'compress decompress progress', run: () => setArchiveWindow('open') }] : []),
+    ...(operations.length ? [{ id: 'operations', group: 'Actions', label: 'Operations', icon: IconListCheck, keywords: 'tasks progress', run: openOperations }] : []),
     { id: 'theme-light', group: 'Preferences', label: 'Use light theme', icon: IconSun, keywords: 'appearance', run: () => setTheme('light') },
     { id: 'theme-dark', group: 'Preferences', label: 'Use dark theme', icon: IconMoon, keywords: 'appearance', run: () => setTheme('dark') },
     { id: 'theme-system', group: 'Preferences', label: 'Use system theme', icon: IconDeviceDesktop, keywords: 'appearance', run: () => setTheme('system') },
@@ -221,9 +221,8 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
         </div>
       </aside>
       <main className="main">
-        {view === 'files' && (access && target ? <FilesView key={target.id} targetName={target.name} path={route.path} user={access} transfers={transfers} archiveJobs={archiveJobs} density={density} onNavigate={path => go('files', path)} onTargets={goFiles}
-          onUpload={openUpload} onAddFiles={addFiles} onTransfers={() => go('transfers')} folderRequest={folderRequest}
-          onArchiveProgress={() => setArchiveWindow('open')} onArchiveStarted={job => { trackArchive(job); setArchiveWindow('open') }} /> : <TargetListView targets={bootstrap.targets} admin={admin} unavailable={!!route.targetId}
+        {view === 'files' && (access && target ? <FilesView key={target.id} targetName={target.name} path={route.path} user={access} transfers={transfers} density={density} onNavigate={path => go('files', path)} onTargets={goFiles}
+          onUpload={openUpload} onAddFiles={addFiles} onTransfers={() => go('transfers')} folderRequest={folderRequest} /> : <TargetListView targets={bootstrap.targets} admin={admin} unavailable={!!route.targetId}
           onOpen={id => navigate({ view: 'files', targetId: id, path: '/' })} onManage={() => go('targets')} onRefresh={onAuthChanged} />)}
         {view === 'transfers' && <TransfersView targets={bootstrap.targets} access={access} transfers={transfers} engine={engine} user={user} connections={connections} onConnections={setConnections} onUpload={openUpload} />}
         {view === 'people' && <PeopleView currentUser={user} onAuthChanged={onAuthChanged} />}
@@ -241,7 +240,7 @@ function Workspace({ bootstrap, user, appearance, onAuthChanged }: { bootstrap: 
           <span className="status-item mono dim hide-sm">v{system?.version ?? VERSION}</span>
         </footer>
       </main>
-      {archiveWindow === 'open' && archiveJobs.length > 0 && <ArchiveJobsDialog jobs={archiveJobs} targets={bootstrap.targets} onCancel={cancelArchive} onClose={() => setArchiveWindow('closed')} />}
+      <OperationsDialog targets={bootstrap.targets} />
       {overlay === 'upload' && target && access && can(access, 'upload') && <UploadDialog targetName={target.name} directory={folder} allowFolders={can(access, 'create')}
         limits={{ ...bootstrap.upload, maxFileSize: Math.min(bootstrap.upload.maxFileSize, target.capabilities.maxChunks * bootstrap.upload.chunkSize) }} connections={connections} onConnections={setConnections}
         onFiles={files => addFiles(files, folder, true)} onClose={() => setOverlay(null)} />}

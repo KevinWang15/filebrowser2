@@ -26,7 +26,7 @@ test('portable runtime boots without the source tree and serves bundled license 
   assert.ok(JSON.parse(packaged.stdout).packages > 0)
   assert.equal((await lstat(join(output, 'app/node_modules'))).isSymbolicLink(), false)
   assert.deepEqual((await readdir(output)).sort(), ['DEPLOYMENT.md', 'LICENSE', 'NOTICE.md', 'THIRD_PARTY_NOTICES.md', 'app', 'docs', 'examples', 'licenses', 'release.json'])
-  for (const name of ['DEPLOYMENT.md', 'docs/storage-targets.md', 'docs/network-shares.md', 'docs/archive-operations.md']) {
+  for (const name of ['DEPLOYMENT.md', 'docs/storage-targets.md', 'docs/network-shares.md', 'docs/operations.md', 'docs/archive-operations.md']) {
     const document = join(output, name)
     for (const match of (await readFile(document, 'utf8')).matchAll(/\]\(([^)]+)\)/g)) {
       if (!match[1].startsWith('https://')) await access(resolve(dirname(document), match[1]))

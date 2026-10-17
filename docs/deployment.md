@@ -2,7 +2,7 @@
 
 Filebrowser2 requires Node.js 24 or a newer supported LTS release. Linux is the supported application host. Named targets may use local filesystems, S3-compatible storage, FTP/FTPS or SFTP. Use a supported OS and a filesystem with working file/directory `fsync`, hard links, and SQLite locking. Other operating systems have not been validated. Application state uses SQLite; no PostgreSQL server is needed.
 
-Dedicated archive operations use private scratch space on the state volume. Containers include native 7-Zip; native hosts need `7zz` or `FB_7ZIP_PATH` for 7z operations. See [archive operations](archive-operations.md) for installation, limits and space requirements.
+Background tasks use the shared [Operations system](operations.md) for persistent progress, cancellation and clearing. Archive operations use private scratch space on the state volume. Containers include native 7-Zip; native hosts need `7zz` or `FB_7ZIP_PATH` for 7z operations. See [archive operations](archive-operations.md) for installation, limits and space requirements.
 
 ## Container
 

@@ -4,13 +4,14 @@
 
 Planned initial release (`0.1.0`).
 
+- First-class Operations with registered use cases, a counted workspace button, persistent progress, cancellation, and clearing finished tasks without deleting their output.
 - First-run administrator setup and revocable authenticated sessions.
 - Named local, S3, FTP/FTPS and SFTP targets with encrypted credentials and independent user grants, scopes and permissions.
 - Application state and `.filebrowser-*` paths follow ordinary target scopes, permissions, and shares; administrators control their exposure without automatic state-directory exclusions.
 - Browsing, folder creation, deletion, previews and byte-range downloads across all target types; file rename and filesystem-directory rename according to each adapter's capabilities.
 - Recursive folder deletion across all targets, with confirmation, per-operation authorization checks, active upload/share protection, and listing refresh after partial failures.
 - Streaming folder and mixed-selection TAR downloads, empty-directory preservation, and cancellation cleanup.
-- Separate Compress and Decompress actions for TAR.GZ, TAR, ZIP and 7z, stored output, a dedicated progress modal, cancellation and validated extraction; official 7-Zip included in container images.
+- Separate Compress and Decompress actions for TAR.GZ, TAR, ZIP and 7z, stored output, shared Operations progress, cancellation and validated extraction; official 7-Zip included in container images.
 - Efficient HEAD metadata for files, ranges and archives; unsupported native names cannot break directory listings.
 - Local target recovery failures do not block application startup; saved upload checkpoints remain available for retry.
 - Target edits recheck administrator access before committing; active downloads recheck on access changes and expire even when their sources stall, without per-buffer database queries.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { IconActivity, IconFolder, IconLock, IconRefresh, IconSettings, IconUpload, IconUsers, type Icon } from '@tabler/icons-react'
 import type { AuditEntry, Target } from '@/shared/types'
+import { PageHeader } from '../components/PageHeader'
 import { api, errorMessage } from '../api'
 import { Avatar, EmptyState, SearchField, Segmented, Spinner } from '../components/ui'
 import { formatDateTime, formatFull } from '../lib/format'
@@ -39,14 +40,13 @@ export function ActivityView({ targets }: { targets: Target[] }) {
   const visible = list.filter(entry => (filter === 'all' || category(entry.action) === filter)
     && (!query || [entry.actor, entry.detail, entry.action, LABELS[entry.action] ?? '', targets.find(target => target.id === entry.targetId)?.name ?? entry.targetId ?? ''].some(value => value.toLowerCase().includes(query))))
   return <div className="page">
-    <header className="page-header">
+    <PageHeader actions={<>
+      <SearchField value={search} onChange={setSearch} label="Search activity" placeholder="Filter events" />
+        <button type="button" className="btn" onClick={() => void refresh()}><IconRefresh size={15} className={loading ? 'spin' : ''} /><span className="btn-label">Refresh</span></button>
+    </>}>
       <div className="page-heading"><h1 className="page-title"><IconActivity size={18} className="title-icon" />Activity</h1>
         <span className="page-sub">The 100 most recent workspace events</span></div>
-      <div className="page-actions">
-        <SearchField value={search} onChange={setSearch} label="Search activity" placeholder="Filter events" />
-        <button type="button" className="btn" onClick={() => void refresh()}><IconRefresh size={15} className={loading ? 'spin' : ''} /><span className="btn-label">Refresh</span></button>
-      </div>
-    </header>
+    </PageHeader>
     <div className="toolbar">
       <Segmented size="sm" label="Filter activity" value={filter} onChange={setFilter} options={[
         { value: 'all', label: 'All', count: counts.all }, { value: 'file', label: 'Files', icon: IconFolder, count: counts.file },

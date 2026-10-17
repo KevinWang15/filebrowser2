@@ -5,7 +5,7 @@ import { access, mkdir, open, readFile, readdir, stat, writeFile } from 'node:fs
 import { join } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { ARCHIVE_FORMATS, type ArchiveJob } from '../../shared/types'
+import { ARCHIVE_FORMATS, type Operation } from '../../shared/types'
 
 async function fixture(page: Page) {
   const api = page.context().request, headers = { 'x-filebrowser-request': '1' }
@@ -31,7 +31,7 @@ async function fixture(page: Page) {
   return { root, target, api, headers, url: `/#/files/${target.id}` }
 }
 
-for (const format of ARCHIVE_FORMATS) test(`${format}: Compress and Decompress round-trip through the browser and retain jobs after reload`, async ({ page }, testInfo) => {
+for (const format of ARCHIVE_FORMATS) test(`${format}: Compress and Decompress round-trip through the browser and retain operations after reload`, async ({ page }, testInfo) => {
   const { root, target, url } = await fixture(page), name = 'bundle.' + format
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   await page.goto(url)
@@ -43,11 +43,11 @@ for (const format of ARCHIVE_FORMATS) test(`${format}: Compress and Decompress r
   await dialog.getByLabel('Format', { exact: true }).selectOption(format)
   await dialog.getByLabel('Archive name', { exact: true }).fill(name)
   await dialog.getByRole('button', { name: 'Compress', exact: true }).click()
-  const operations = page.getByRole('dialog', { name: 'Compress & Decompress', exact: true })
+  const operations = page.getByRole('dialog', { name: 'Operations', exact: true })
   await expect(operations).toBeVisible()
   expect(page.url()).toContain(`/#/files/${target.id}`)
-  const targetJobs = operations.locator('.archive-job').filter({ hasText: target.name })
-  const compressed = targetJobs.filter({ hasText: '/' + name })
+  const targetOperations = operations.locator('.operation').filter({ hasText: target.name })
+  const compressed = targetOperations.filter({ hasText: '/' + name })
   await expect(compressed).toContainText('Complete')
   await expect(compressed).toContainText('100%')
   // Independently validate the generated format with the upstream command-line reader.
@@ -64,7 +64,7 @@ for (const format of ARCHIVE_FORMATS) test(`${format}: Compress and Decompress r
   const extract = page.getByRole('dialog', { name: 'Decompress', exact: true })
   await extract.getByLabel('Destination folder name', { exact: true }).fill('restored')
   await extract.getByRole('button', { name: 'Decompress', exact: true }).click()
-  await expect(targetJobs.filter({ hasText: '/restored' })).toContainText('Complete')
+  await expect(targetOperations.filter({ hasText: '/restored' })).toContainText('Complete')
   for (const path of ['folder/文件.txt', 'folder/.hidden', 'folder/@literal[1]*?.txt', 'folder/子目录/binary.bin', 'extra.txt', 'zero']) {
     expect(await readFile(join(root, 'restored', path))).toEqual(await readFile(join(root, path)))
   }
@@ -74,8 +74,8 @@ for (const format of ARCHIVE_FORMATS) test(`${format}: Compress and Decompress r
   await expect(page.getByRole('button', { name: 'restored', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'restored', exact: true }).click()
   await expect(page.getByRole('button', { name: 'folder', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Archive operations', exact: true }).click()
-  await expect(targetJobs.filter({ hasText: '/restored' })).toContainText('Complete')
+  await page.getByRole('button', { name: /^Operations \(\d+\)$/ }).click()
+  await expect(targetOperations.filter({ hasText: '/restored' })).toContainText('Complete')
   await page.screenshot({ path: testInfo.outputPath('archive-progress.png'), fullPage: true })
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.screenshot({ path: testInfo.outputPath('archive-progress-dark.png'), fullPage: true })
@@ -86,9 +86,75 @@ for (const format of ARCHIVE_FORMATS) test(`${format}: Compress and Decompress r
   await operations.getByRole('button', { name: 'Close', exact: true }).click()
   await page.goto(`/#/transfers/${target.id}`)
   await expect(page.getByText('Resumable, chunk-verified uploads', { exact: true })).toBeAttached()
-  await expect(page.locator('.archive-job')).toHaveCount(0)
+  await expect(page.locator('.operation')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Uploads', exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
+})
+
+test('Operations is global, counts uncleared tasks and stays hidden after clearing even when a stale poll arrives', async ({ page }, testInfo) => {
+  const { root, url, api, headers, target } = await fixture(page)
+  expect((await api.delete('/api/operations', { headers })).status()).toBe(200)
+  await page.goto(url)
+  const button = page.getByRole('button', { name: /^Operations \(\d+\)$/ })
+  const operations = page.getByRole('dialog', { name: 'Operations', exact: true })
+  await expect(button).toHaveCount(0)
+  const compress = async (name: string) => {
+    await page.goto(url)
+    await page.getByRole('checkbox', { name: 'Select extra.txt', exact: true }).check()
+    await page.getByRole('button', { name: 'Compress', exact: true }).click()
+    await page.getByLabel('Archive name', { exact: true }).fill(name)
+    await page.getByRole('dialog', { name: 'Compress', exact: true }).getByRole('button', { name: 'Compress', exact: true }).click()
+    await expect(operations.locator('.operation').filter({ hasText: '/' + name })).toContainText('Complete')
+  }
+  await compress('first.zip')
+  const output = await readFile(join(root, 'first.zip'))
+  await operations.getByRole('button', { name: 'Close', exact: true }).click()
+  for (const route of ['/files', '/settings', '/targets', '/people', '/activity', `/transfers/${target.id}`]) {
+    await page.goto('/#' + route)
+    await expect(button).toHaveAccessibleName('Operations (1)')
+    await expect(button).toBeVisible()
+  }
+  await button.click()
+  await operations.getByRole('button', { name: 'Clear Compress /first.zip', exact: true }).click()
+  await expect(operations).toHaveCount(0)
+  await expect(button).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Transfers', exact: true })).toBeVisible()
+  await expect(button).toHaveCount(0)
+  expect(await readFile(join(root, 'first.zip'))).toEqual(output)
+  await compress('second.zip')
+  await operations.getByRole('button', { name: 'Close', exact: true }).click()
+  await compress('third.zip')
+  await expect(button).toHaveAccessibleName('Operations (2)')
+  await operations.getByRole('button', { name: 'Clear Compress /second.zip', exact: true }).click()
+  await expect(button).toHaveAccessibleName('Operations (1)')
+  await page.screenshot({ path: testInfo.outputPath('operations-desktop.png'), fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('operations-mobile.png'), fullPage: true })
+  // Hold a GET with the old task list until the clear response has updated local state.
+  let release!: () => void, captured!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  const ready = new Promise<void>(resolve => { captured = resolve })
+  await page.route('**/api/operations', async route => {
+    if (route.request().method() !== 'GET') return route.continue()
+    const response = await route.fetch()
+    captured(); await held; await route.fulfill({ response })
+  }, { times: 1 })
+  await ready
+  await operations.getByRole('button', { name: 'Clear finished', exact: true }).click()
+  await expect(operations).toHaveCount(0)
+  await expect(button).toHaveCount(0)
+  release()
+  await expect.poll(async () => (await (await api.get('/api/operations')).json()).length).toBe(0)
+  await page.waitForTimeout(1500)
+  await expect(button).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByLabel('Search files', { exact: true })).toBeVisible()
+  await expect(button).toHaveCount(0)
+  expect(await readFile(join(root, 'first.zip'))).toEqual(output)
+  expect((await stat(join(root, 'second.zip'))).size).toBeGreaterThan(0)
+  expect((await stat(join(root, 'third.zip'))).size).toBeGreaterThan(0)
 })
 
 test('real 7z compression stays in a progress modal, keeps running when closed, restores after reload and cancels cleanly', async ({ page }, testInfo) => {
@@ -108,11 +174,11 @@ test('real 7z compression stays in a progress modal, keeps running when closed, 
   const dialog = page.getByRole('dialog', { name: 'Compress', exact: true })
   await dialog.getByLabel('Format', { exact: true }).selectOption('7z')
   await dialog.getByLabel('Archive name', { exact: true }).fill('cancel.7z')
-  const started = page.waitForResponse(response => response.url().endsWith(`/targets/${target.id}/archive-jobs`) && response.request().method() === 'POST')
+  const started = page.waitForResponse(response => response.url().endsWith('/api/operations') && response.request().method() === 'POST')
   await dialog.getByRole('button', { name: 'Compress', exact: true }).click()
-  const job: ArchiveJob = await (await started).json()
-  const progress = page.getByRole('dialog', { name: 'Compress & Decompress', exact: true })
-  const card = progress.locator('.archive-job').filter({ hasText: '/cancel.7z' })
+  const job: Operation = await (await started).json()
+  const progress = page.getByRole('dialog', { name: 'Operations', exact: true })
+  const card = progress.locator('.operation').filter({ hasText: '/cancel.7z' })
   await expect(card).toContainText('Compressing')
   await expect.poll(async () => Number(await card.getByRole('progressbar').getAttribute('aria-valuenow'))).toBeGreaterThan(0)
   expect(page.url()).toContain(`/#/files/${target.id}`)
@@ -120,21 +186,21 @@ test('real 7z compression stays in a progress modal, keeps running when closed, 
   await expect(progress).toHaveCount(0)
   await page.goto(`/#/transfers/${target.id}`)
   await expect(page.getByText('Resumable, chunk-verified uploads', { exact: true })).toBeVisible()
-  await expect(page.locator('.archive-job')).toHaveCount(0)
+  await expect(page.locator('.operation')).toHaveCount(0)
   await page.goto(url)
-  await page.getByRole('button', { name: 'Archive operations', exact: true }).click()
+  await page.getByRole('button', { name: /^Operations \(\d+\)$/ }).click()
   await expect(card).toContainText('Compressing')
   await page.reload()
-  await expect(card.getByRole('button', { name: 'Cancel compress /cancel.7z', exact: true })).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Cancel Compress /cancel.7z', exact: true })).toBeVisible()
   const percent = Number(await card.getByRole('progressbar').getAttribute('aria-valuenow'))
   expect(percent).toBeGreaterThan(0); expect(percent).toBeLessThan(100)
   await page.screenshot({ path: testInfo.outputPath('live-progress.png'), fullPage: true })
-  await card.getByRole('button', { name: 'Cancel compress /cancel.7z', exact: true }).click()
+  await card.getByRole('button', { name: 'Cancel Compress /cancel.7z', exact: true }).click()
   await expect(card).toContainText('Canceled')
-  await expect(card.getByRole('button')).toHaveCount(0)
-  await expect.poll(async () => (await (await api.get('/api/archive-jobs')).json() as ArchiveJob[]).find(item => item.id === job.id)?.status).toBe('canceled')
+  await expect(card.getByRole('button', { name: 'Clear Compress /cancel.7z', exact: true })).toBeVisible()
+  await expect.poll(async () => (await (await api.get('/api/operations')).json() as Operation[]).find(item => item.id === job.id)?.status).toBe('canceled')
   await expect(access(join(root, 'cancel.7z'))).rejects.toMatchObject({ code: 'ENOENT' })
-  await expect(access(join(process.env.FB_E2E_ROOT!, 'state', 'archive-work', job.id))).rejects.toMatchObject({ code: 'ENOENT' })
+  await expect(access(join(process.env.FB_E2E_ROOT!, 'state', 'operations-work', job.id))).rejects.toMatchObject({ code: 'ENOENT' })
   expect((await stat(source)).size).toBe(64 * 1024 * 1024)
   expect(await checksum()).toBe(before)
   // Start a fresh operation from the context menu to verify cancellation released its slot.
@@ -144,7 +210,7 @@ test('real 7z compression stays in a progress modal, keeps running when closed, 
   await page.getByRole('menuitem', { name: 'Compress…', exact: true }).click()
   await page.getByLabel('Archive name', { exact: true }).fill('after-cancel.zip')
   await page.getByRole('dialog', { name: 'Compress', exact: true }).getByRole('button', { name: 'Compress', exact: true }).click()
-  await expect(page.locator('.archive-job').filter({ hasText: '/after-cancel.zip' })).toContainText('Complete')
+  await expect(page.locator('.operation').filter({ hasText: '/after-cancel.zip' })).toContainText('Complete')
 })
 
 test('Decompress reports destination conflicts and invalid archives without overwriting files', async ({ page }, testInfo) => {
@@ -162,7 +228,7 @@ test('Decompress reports destination conflicts and invalid archives without over
   expect(await readFile(join(root, 'existing', 'keep.txt'), 'utf8')).toBe('Keep this file')
   await dialog.getByLabel('Destination folder name', { exact: true }).fill('failed-output')
   await dialog.getByRole('button', { name: 'Decompress', exact: true }).click()
-  const card = page.locator('.archive-job').filter({ hasText: '/failed-output' })
+  const card = page.locator('.operation').filter({ hasText: '/failed-output' })
   await expect(card).toContainText('Failed')
   await expect(card.getByRole('alert')).toBeVisible()
   await expect(access(join(root, 'failed-output'))).rejects.toMatchObject({ code: 'ENOENT' })

@@ -4,6 +4,7 @@ import {
   IconPlayerPauseFilled, IconPlayerPlay, IconPlus, IconRefreshAlert, IconTrash, IconX,
 } from '@tabler/icons-react'
 import type { User, Target, TargetAccess } from '@/shared/types'
+import { PageHeader } from '../components/PageHeader'
 import { errorMessage } from '../api'
 import { FileIcon } from '../components/FileIcon'
 import { Modal } from '../components/Modal'
@@ -95,13 +96,10 @@ export function TransfersView({ targets, access, transfers, engine, user, connec
     catch (error) { notify(errorMessage(error), true) } finally { setCancelBusy(false) }
   }
   return <div className="page">
-    <header className="page-header">
+    <PageHeader actions={can(access, 'upload') && <button type="button" className="btn btn-primary" onClick={onUpload}><IconPlus size={15} /><span className="btn-label">New upload</span></button>}>
       <div className="page-heading"><h1 className="page-title"><IconArrowsTransferUp size={18} className="title-icon" />Transfers</h1>
         <span className="page-sub">Resumable, chunk-verified uploads</span></div>
-      <div className="page-actions">
-        {(can(access, 'upload')) && <button type="button" className="btn btn-primary" onClick={onUpload}><IconPlus size={15} /><span className="btn-label">New upload</span></button>}
-      </div>
-    </header>
+    </PageHeader>
     {access?.storageReadOnly && <p className="page-foot dim">Storage is read-only. Saved uploads can resume when write access is enabled.</p>}
     <div className="stat-strip">
       <div><span>Active</span><strong className="mono">{active.length}</strong></div>
